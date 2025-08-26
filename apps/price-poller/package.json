@@ -10,8 +10,18 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@types/express": "^5.0.3",
+    "@repo/services": "workspace:*",
+    "@types/dotenv": "^8.2.3",
     "axios": "^1.11.0",
-    "express": "^5.1.0"
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "redis": "^5.8.2",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/redis": "^4.0.11",
+    "@types/ws": "^8.18.1",
+    "nodemon": "^3.1.10"
   }
 }
