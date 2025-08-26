@@ -1,14 +1,12 @@
-import axios from "axios";
-import dotenv, { parse } from "dotenv";
+import dotenv from "dotenv";
 dotenv.config();
 import { WebSocket } from "ws";
 import { pubSubManager } from "./utils/services";
+import prismaClient from "@repo/db";
 
 const wss = new WebSocket(
   "wss://stream.binance.com:9443/stream?streams=btcusdt@trade"
 );
-
-const dataToPushToDB = [];
 
 interface MessageData {
   e: string;
@@ -19,26 +17,42 @@ interface Message {
   data: MessageData;
 }
 
+const buffer: any[] = [];
+
 const main = async () => {
   console.log("connecting ws");
 
-  setTimeout(() => {
-    // pushing to db after 10sec
-  }, 10 * 1000);
   wss.on("message", async (msg) => {
     const parsedData: Message = JSON.parse(msg.toString());
-
     const { data } = parsedData;
     const price = parseFloat(data.p);
-    const payload = {
-      event: data.e,
-      price: (price * 2) / 100 + price,
-      time: data.T,
+
+    const tick = {
+      time: new Date(data.T),
+      symbol: "BTCUSDT",
+      price,
     };
-    console.log("data", payload);
-    await pubSubManager.publish("live_feed", payload);
-    dataToPushToDB.push(parsedData);
+
+    buffer.push(tick);
+
+    await pubSubManager.publish("live_feed", tick);
   });
+
+  setInterval(async () => {
+    if (buffer.length > 0) {
+      const batch = [...buffer];
+      buffer.length = 0;
+
+      try {
+        await prismaClient.ticks.createMany({
+          data: batch,
+          skipDuplicates: true,
+        });
+      } catch (err) {
+        console.error("Dv insert error:", err);
+      }
+    }
+  }, 2000);
 };
 
 main();

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "public"."Ticks" ALTER COLUMN "time" SET DATA TYPE TIMESTAMPTZ;
