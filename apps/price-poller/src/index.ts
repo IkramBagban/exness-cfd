@@ -30,12 +30,17 @@ const main = async () => {
     const tick = {
       time: new Date(data.T),
       symbol: "BTCUSDT",
-      price,
+      price: price.toString(),
     };
 
     buffer.push(tick);
 
-    await pubSubManager.publish("live_feed", tick);
+    await pubSubManager.publish("live_feed", {
+      time: new Date(data.T),
+      symbol: "BTCUSDT",
+      bid: price - (price * 5) / 100,
+      ask: price + (price * 5) / 100,
+    });
   });
 
   setInterval(async () => {
