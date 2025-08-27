@@ -11,11 +11,13 @@
   "license": "ISC",
   "dependencies": {
     "@repo/db": "workspace:*",
+    "@repo/services": "workspace:*",
     "@types/express": "^5.0.3",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "redis": "^5.8.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

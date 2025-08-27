@@ -1,12 +1,12 @@
 import { createClient } from "redis";
-export class PubSubManager {
+class PubSubManager {
   publisher;
   subscriber;
   static instance: PubSubManager;
 
   constructor(url: string) {
     this.publisher = createClient({
-      url: "redis://default:WA9nGxg5rO2UR3GYCb8uwxx96zfrxV6w@redis-14029.c241.us-east-1-4.ec2.redns.redis-cloud.com:14029",
+      url: url,
     });
     this.subscriber = createClient({
       url: url,
@@ -23,9 +23,7 @@ export class PubSubManager {
 
   static getInstance() {
     if (!this.instance) {
-      this.instance = new PubSubManager(
-        "redis://default:WA9nGxg5rO2UR3GYCb8uwxx96zfrxV6w@redis-14029.c241.us-east-1-4.ec2.redns.redis-cloud.com:14029"
-      );
+      this.instance = new PubSubManager(process.env.REDIS_URL!);
     }
     return this.instance;
   }
@@ -41,7 +39,7 @@ export class PubSubManager {
   }
   async subscribe(channel: string, cb: (msg: string) => void) {
     await this.subscriber.subscribe(channel, (message) => {
-      console.log(message);
+    //   console.log(message);
       cb(message);
     });
   }

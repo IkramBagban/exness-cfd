@@ -4,14 +4,18 @@ import { WebSocket } from "ws";
 import { pubSubManager } from "./utils/services";
 import prismaClient from "@repo/db";
 
-const wss = new WebSocket(
-  "wss://stream.binance.com:9443/stream?streams=btcusdt@trade"
-);
+const symbols = ["btcusdt", "ethusdt", "solusdt"];
+
+const streams = symbols.map((s) => `${s}@trade`).join("/");
+const wsURL = `wss://stream.binance.com:9443/stream?streams=${streams}`;
+console.log(wsURL);
+const wss = new WebSocket(wsURL);
 
 interface MessageData {
   e: string;
   p: string;
   T: number;
+  s: string;
 }
 interface Message {
   data: MessageData;
@@ -29,18 +33,28 @@ const main = async () => {
 
     const tick = {
       time: new Date(data.T),
-      symbol: "BTCUSDT",
+      symbol: data.s,
       price: price.toString(),
     };
 
     buffer.push(tick);
 
-    await pubSubManager.publish("live_feed", {
-      time: new Date(data.T),
-      symbol: "BTCUSDT",
-      bid: price - (price * 5) / 100,
-      ask: price + (price * 5) / 100,
-    });
+    const bidPrice = price + (price * 5) / 100;
+    const askPrice = price - (price * 5) / 100;
+    Promise.all([
+      await pubSubManager.publish("live_feed", {
+        time: new Date(data.T),
+        symbol: data.s,
+        bid: bidPrice,
+        ask: askPrice,
+      }),
+      await pubSubManager.publish(`live_feed:${data.s}`, {
+        time: new Date(data.T),
+        symbol: data.s,
+        bid: bidPrice,
+        ask: askPrice,
+      }),
+    ]);
   });
 
   setInterval(async () => {
@@ -57,7 +71,7 @@ const main = async () => {
         console.error("Dv insert error:", err);
       }
     }
-  }, 2000);
+  }, 10000);
 };
 
 main();

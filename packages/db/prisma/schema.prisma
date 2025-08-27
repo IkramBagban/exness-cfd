@@ -24,7 +24,8 @@ model User {
 model Ticks {
   time   DateTime @db.Timestamptz
   symbol String
-  price  String
+  price  Float    @db.DoublePrecision
+
 
   @@unique([time, symbol, price])
 }
