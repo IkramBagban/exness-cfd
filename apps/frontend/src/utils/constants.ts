@@ -18,7 +18,7 @@ export const instruments = [
     color: "text-orange-500",
   },
   {
-    symbol: "SOLU SDT",
+    symbol: "SOLUSDT",
     name: "Solana",
     bid: 112288.68,
     ask: 112308.68,

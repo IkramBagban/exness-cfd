@@ -4,6 +4,7 @@ import { validateRequireEnvs } from "./utils/helper";
 import prismaClient from "@repo/db";
 import { StoreManager } from "./utils/store";
 import { pubSubManager } from "./utils/pubsub";
+import cors from "cors";
 const app = express();
 
 const requiredEnvsKeys = ["JWT_SECRET"];
@@ -11,30 +12,30 @@ const requiredEnvsKeys = ["JWT_SECRET"];
 validateRequireEnvs(requiredEnvsKeys);
 
 app.use(express.json());
+app.use(cors());
 app.use("/api/v1", authRoutes);
 
 const tableMap: Record<string, string> = {
   "1m": "candles_1m",
   "5m": "candles_5m",
-  "15m": "candles_15m",
-  "1h": "candles_1h",
-  "1d": "candles_1d",
+  // "15m": "candles_15m",
+  // "1h": "candles_1h",
+  // "1d": "candles_1d",
 };
 
 // { BITC: {bid: 12, ask: 21}}
 const assetPrices: Record<string, { bid: number; ask: number }> = {};
 
 pubSubManager.subscribe("live_feed", (msg) => {
-//   console.log("msg", msg);
   const { symbol, bid, ask }: { symbol: string; bid: number; ask: number } =
     JSON.parse(msg);
-//   console.log("===> ", { symbol, bid, ask });
   assetPrices[symbol] = { bid, ask };
 });
 
 app.get("/api/v1/candles", async (req, res, next) => {
   const { symbol = "BTCUSDT", interval = "1m", limit = "100" } = req.query;
   const tableName = tableMap[interval as string];
+  console.log({ symbol, interval, limit });
 
   if (!tableName) {
     return res.status(400).json({ error: "Unsupported interval" });
@@ -45,7 +46,7 @@ app.get("/api/v1/candles", async (req, res, next) => {
   }
 
   try {
-    const candles = await prismaClient.$queryRawUnsafe(`
+    const candles: any[] = await prismaClient.$queryRawUnsafe(`
       SELECT bucket as time,
              open,
              high,
@@ -53,11 +54,16 @@ app.get("/api/v1/candles", async (req, res, next) => {
              close
       FROM ${tableName}
       WHERE symbol = '${symbol}'
-      ORDER BY bucket DESC
+      ORDER BY bucket ASC
       LIMIT ${Number(limit)}; 
     `);
 
-    res.status(200).json(candles);
+    res.status(200).json({
+      candles: candles.map((candle) => ({
+        ...candle,
+        time: Math.floor(new Date(candle.time).getTime() / 1000),
+      })),
+    });
   } catch (error) {
     console.error("Error fetching candles:", error);
     res.status(500).json({ error: "Internal server error", success: false });

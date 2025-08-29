@@ -34,7 +34,7 @@ const main = async () => {
     const tick = {
       time: new Date(data.T),
       symbol: data.s,
-      price: price.toString(),
+      price: price,
     };
 
     buffer.push(tick);

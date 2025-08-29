@@ -41,7 +41,6 @@ export class PubSubManager {
   }
   async subscribe(channel: string, cb: (msg: string) => void) {
     await this.subscriber.subscribe(channel, (message) => {
-      console.log(message);
       cb(message);
     });
   }

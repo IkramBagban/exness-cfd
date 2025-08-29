@@ -4,7 +4,7 @@ import { instruments } from '../utils/constants';
 
 const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }) => {
   return (
-    <div className="w-80 bg-gray-800 border-r border-gray-700">
+    <div className="w-85 bg-gray-800 border-r border-gray-700">
       <div className="p-4 border-b border-gray-700">
         <div className="flex items-center space-x-2 mb-4">
           <Search className="w-4 h-4 text-gray-400" />
@@ -41,9 +41,9 @@ const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }) => {
                     <div className="text-xs text-gray-400">{instrument.name}</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-mono">{currentBid.toFixed(instrument.symbol.includes('USD') ? 5 : 2)}</div>
-                  <div className="text-xs font-mono text-gray-400">{currentAsk.toFixed(instrument.symbol.includes('USD') ? 5 : 2)}</div>
+                <div className="text-right flex gap-4 space-y-3">
+                  <div className="text-sm font-mono text-green-400 ">{currentBid.toFixed(5)}</div> 
+                  <div className="text-sm font-mono text-red-500">{currentAsk.toFixed(5)}</div>
                 </div>
               </div>
             );
