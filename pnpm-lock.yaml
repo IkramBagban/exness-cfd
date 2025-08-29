@@ -20,6 +20,9 @@ importers:
 
   apps/backend:
     dependencies:
+      '@repo/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -217,6 +220,8 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
+
+  packages/common: {}
 
   packages/db:
     dependencies:

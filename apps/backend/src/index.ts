@@ -2,9 +2,11 @@ import express from "express";
 import authRoutes from "./routes/auth.route";
 import { validateRequireEnvs } from "./utils/helper";
 import prismaClient from "@repo/db";
+import { TradeType } from "@repo/common";
 import { StoreManager } from "./utils/store";
 import { pubSubManager } from "./utils/pubsub";
 import cors from "cors";
+import { TradeStatus } from "@repo/common/types";
 const app = express();
 
 const requiredEnvsKeys = ["JWT_SECRET"];
@@ -77,10 +79,13 @@ app.get("/api/v1/balance", (req, res, next) => {
 app.post("/api/v1/order/open", async (req, res, next) => {
   try {
     // have to add validation and handler error for symbol, user can send wrong symbol
-    const { type, symbol, qty } = req.body as {
-      type: "buy" | "sell";
+    const { type, symbol, qty, margin, leverage, status } = req.body as {
+      type: TradeType;
       symbol: string;
       qty: number;
+      margin?: number;
+      leverage?: number; // 1-100
+      status: TradeStatus;
     };
 
     const store = StoreManager.getInstance();
@@ -90,48 +95,54 @@ app.post("/api/v1/order/open", async (req, res, next) => {
     const assetPrice = assetPrices[symbol];
 
     // in both buy and sell, we are decreasing the quantity. because this route is only to make order open, not close. so in both the cases user will making an order.
-    if (type === "buy") {
-      if (!balance["usd"] || assetPrice.bid * qty > balance["usd"]?.qty) {
-        return res.status(400).json({ error: "Insufficient balance" });
+    if (!leverage) {
+      if (type === TradeType.BUY) {
+        if (!balance["usd"] || assetPrice.bid * qty > balance["usd"]?.qty) {
+          return res.status(400).json({ error: "Insufficient balance" });
+        }
+
+        if (!balance[symbol]) {
+          balance[symbol] = { qty: 0, type: TradeType.BUY };
+        }
+        balance[symbol].qty += qty;
+        balance[symbol].type = TradeType.BUY;
+
+        store.storeTrade({
+          type: TradeType.BUY,
+          symbol,
+          qty,
+          entryPrice: assetPrice.bid,
+          status,
+        });
+        store.updateBalance("usd", balance["usd"].qty - assetPrice.bid * qty);
+        store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
+      } else if (type === TradeType.SELL) {
+        // (rough) need to check again..... good night
+        if (!balance["usd"] || assetPrice.ask * qty > balance["usd"]?.qty) {
+          return res.status(400).json({ error: "Insufficient balance" });
+        }
+
+        if (!balance[symbol]) {
+          balance[symbol] = { qty: 0, type: TradeType.SELL };
+        }
+
+        balance[symbol].qty += qty;
+        balance[symbol].type = TradeType.SELL;
+
+        store.storeTrade({
+          type: TradeType.SELL,
+          symbol,
+          qty,
+          entryPrice: assetPrice.ask,
+          status,
+        });
+        store.updateBalance("usd", balance["usd"].qty - assetPrice.ask * qty);
+        store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
       }
-
-      if (!balance[symbol]) {
-        balance[symbol] = { qty: 0, type: "buy" };
-      }
-      balance[symbol].qty += qty;
-      balance[symbol].type = "buy";
-
-      store.executeOrder({
-        type: "buy",
-        symbol,
-        qty,
-        entryPrice: assetPrice.bid,
-      });
-      store.updateBalance("usd", balance["usd"].qty - assetPrice.bid * qty);
-      store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
-    } else if (type === "sell") {
-      // (rough) need to check again..... good night
-      if (!balance["usd"] || assetPrice.ask * qty > balance["usd"]?.qty) {
-        return res.status(400).json({ error: "Insufficient balance" });
-      }
-
-      if (!balance[symbol]) {
-        balance[symbol] = { qty: 0, type: "sell" };
-      }
-
-      balance[symbol].qty += qty;
-      balance[symbol].type = "sell";
-
-      store.executeOrder({
-        type: "sell",
-        symbol,
-        qty,
-        entryPrice: assetPrice.ask,
-      });
-      store.updateBalance("usd", balance["usd"].qty - assetPrice.ask * qty);
-      store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
+    } else {
+      //with leverage
+      console.log("with leverage");
     }
-
     // store.updateBalance(symbol, qty, type);
     res.status(201).json({ message: "Order created successfully" });
   } catch (error) {
