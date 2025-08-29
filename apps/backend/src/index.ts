@@ -1,11 +1,13 @@
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import authRoutes from "./routes/auth.route";
-import { validateRequireEnvs } from "./utils/helper";
+import { throwError, validateRequireEnvs } from "./utils/helper";
 import prismaClient from "@repo/db";
-import { TradeType } from "@repo/common";
-import { StoreManager } from "./utils/store";
+import { createTradeSchema, TradeType } from "@repo/common";
+import { storeManager, StoreManager } from "./utils/store";
 import { pubSubManager } from "./utils/pubsub";
 import cors from "cors";
+// import { TradeStatus } from "@repo/common/types";
+
 import { TradeStatus } from "@repo/common/types";
 const app = express();
 
@@ -32,6 +34,34 @@ pubSubManager.subscribe("live_feed", (msg) => {
   const { symbol, bid, ask }: { symbol: string; bid: number; ask: number } =
     JSON.parse(msg);
   assetPrices[symbol] = { bid, ask };
+
+  const allLeverageOrder = storeManager.orders.filter(
+    (o) => o.status === TradeStatus.OPEN && o.leverage && o.margin
+  );
+
+  for (const lOrder of allLeverageOrder) {
+    if (lOrder.symbol !== symbol) continue;
+
+    const positionSize = lOrder.margin * lOrder.leverage;
+    const markPrice = lOrder.type === TradeType.BUY ? bid : ask; 
+    const pnl =
+      (markPrice - lOrder.entryPrice) *
+      lOrder.qty *
+      (lOrder.type === TradeType.BUY ? 1 : -1);
+
+    const equity = lOrder.margin + pnl;
+
+    const mmr = 0.005; // 0.5% of position size
+    const maintenanceMargin = positionSize * mmr;
+
+    if (equity <= maintenanceMargin) {
+      console.log("Liquidating order", lOrder.orderId, {
+        equity,
+        maintenanceMargin,
+      });
+      storeManager.closeTrade(lOrder.orderId, markPrice);
+    }
+  }
 });
 
 app.get("/api/v1/candles", async (req, res, next) => {
@@ -79,31 +109,45 @@ app.get("/api/v1/balance", (req, res, next) => {
 app.post("/api/v1/order/open", async (req, res, next) => {
   try {
     // have to add validation and handler error for symbol, user can send wrong symbol
-    const { type, symbol, qty, margin, leverage, status } = req.body as {
+    const { type, symbol, qty, margin, leverage } = req.body as {
       type: TradeType;
       symbol: string;
       qty: number;
       margin?: number;
       leverage?: number; // 1-100
-      status: TradeStatus;
     };
+
+    const schemaResult = createTradeSchema.safeParse(req.body);
+
+    if (!schemaResult.success) {
+      return res.status(400).json({
+        error: schemaResult.error.flatten().fieldErrors,
+        success: false,
+      });
+    }
 
     const store = StoreManager.getInstance();
     const balance = store.getBalance();
     console.log("balance", balance);
 
+    if (!assetPrices[symbol]) {
+      throwError(400, "Invalid or unavailable symbol");
+    }
+
     const assetPrice = assetPrices[symbol];
 
     // in both buy and sell, we are decreasing the quantity. because this route is only to make order open, not close. so in both the cases user will making an order.
     if (!leverage) {
+      if (!qty) throwError(400, "qty should be greater than 0");
       if (type === TradeType.BUY) {
         if (!balance["usd"] || assetPrice.bid * qty > balance["usd"]?.qty) {
-          return res.status(400).json({ error: "Insufficient balance" });
+          throwError(400, "Insufficient balance");
         }
 
         if (!balance[symbol]) {
           balance[symbol] = { qty: 0, type: TradeType.BUY };
         }
+
         balance[symbol].qty += qty;
         balance[symbol].type = TradeType.BUY;
 
@@ -112,14 +156,14 @@ app.post("/api/v1/order/open", async (req, res, next) => {
           symbol,
           qty,
           entryPrice: assetPrice.bid,
-          status,
+          status: TradeStatus.OPEN,
         });
         store.updateBalance("usd", balance["usd"].qty - assetPrice.bid * qty);
         store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
       } else if (type === TradeType.SELL) {
         // (rough) need to check again..... good night
         if (!balance["usd"] || assetPrice.ask * qty > balance["usd"]?.qty) {
-          return res.status(400).json({ error: "Insufficient balance" });
+          throwError(400, "Insufficient balance");
         }
 
         if (!balance[symbol]) {
@@ -134,21 +178,64 @@ app.post("/api/v1/order/open", async (req, res, next) => {
           symbol,
           qty,
           entryPrice: assetPrice.ask,
-          status,
+          status: TradeStatus.OPEN,
         });
         store.updateBalance("usd", balance["usd"].qty - assetPrice.ask * qty);
         store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
       }
     } else {
-      //with leverage
-      console.log("with leverage");
+      if (margin! > store.getBalance()["usd"].qty) {
+        throwError(400, "Insufficient balance");
+      }
+      const positionSize = margin! * leverage;
+
+      if (type === TradeType.BUY) {
+        const qty = positionSize / assetPrice.bid;
+        store.updateBalance("usd", balance["usd"].qty - margin!, TradeType.BUY);
+        store.updateBalance(symbol, qty, TradeType.BUY);
+        store.storeTrade({
+          type: TradeType.BUY,
+          symbol,
+          qty,
+          entryPrice: assetPrice.bid,
+          status: TradeStatus.OPEN,
+          margin,
+          leverage,
+        });
+      } else if (type === TradeType.SELL) {
+        const qty = positionSize / assetPrice.ask;
+
+        store.updateBalance(
+          "usd",
+          balance["usd"].qty - margin!,
+          TradeType.SELL
+        );
+        store.updateBalance(symbol, qty, TradeType.SELL);
+        store.storeTrade({
+          type: TradeType.SELL,
+          symbol,
+          qty,
+          entryPrice: assetPrice.ask,
+          status: TradeStatus.OPEN,
+          margin,
+          leverage,
+        });
+      } else {
+        throwError(400, "Invalid order type it should be `buy` | `sell`");
+      }
     }
-    // store.updateBalance(symbol, qty, type);
     res.status(201).json({ message: "Order created successfully" });
   } catch (error) {
     console.error("Error creating order:", error);
-    res.status(500).json({ error: "Internal server error" });
+    next(error);
   }
+});
+
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  const errorMessage = err.message || "Internal Server error";
+  const statusCode = err.statusCode || 500;
+
+  res.status(statusCode).json({ error: errorMessage, success: false });
 });
 
 app.get("/api/v1/orders", async (req, res, next) => {
