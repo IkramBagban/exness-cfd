@@ -1,15 +1,16 @@
 import { TradeStatus, TradeType } from "@repo/common/types";
+import { v4 as uuidv4 } from "uuid";
 
 interface Order {
-  orderId: number;
+  orderId: string;
   type: TradeType;
   symbol: string;
   qty: number;
-  entryPrice: number; // this would be in usd
+  openPrice: number; // this would be in usd
   status: TradeStatus;
   leverage: number;
   margin: number;
-  closedAt?: number;
+  closePrice?: number;
 }
 export class StoreManager {
   static instance: StoreManager;
@@ -30,7 +31,7 @@ export class StoreManager {
     type,
     symbol,
     qty,
-    entryPrice,
+    openPrice,
     status,
     margin,
     leverage,
@@ -38,36 +39,41 @@ export class StoreManager {
     type: TradeType;
     symbol: string;
     qty: number;
-    entryPrice: number;
+    openPrice: number;
     status: TradeStatus;
     margin?: number;
     leverage?: number;
-  }): void {
-    const orderId = Date.now() + Math.floor(Math.random() * 10000 + 1000);
+  }): string {
+    const orderId = uuidv4();
     const order = {
       orderId,
       type,
       symbol,
       qty,
-      entryPrice,
+      openPrice,
       status,
       margin: margin!,
       leverage: leverage!,
     };
     this.orders.push(order);
+    return orderId;
   }
 
-  public closeTrade(orderId: number, closedAt: number) {
+  public closeTrade(orderId: string, closePrice: number) {
     this.orders.map((o) => {
       if (o.orderId === orderId) {
-        o = { ...o, status: TradeStatus.CLOSED, closedAt };
+        o = { ...o, status: TradeStatus.CLOSED, closePrice };
       }
       return o;
     });
   }
 
-  public getOpenOrders(): Order[] | undefined {
+  public getOpenTrades(): Order[] | undefined {
     return this.orders.filter((o) => o.status === TradeStatus.OPEN);
+  }
+
+  public getClosedTrades(): Order[] | undefined {
+    return this.orders.filter((o) => o.status === TradeStatus.CLOSED);
   }
 
   public getBalance(): {

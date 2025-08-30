@@ -4,7 +4,7 @@ export const createTradeSchema = z
   .object({
     type: z.enum(["buy", "sell"]),
     symbol: z.string(),
-    qty: z.number().min(1).optional(),
+    qty: z.number().min(0).optional(), // should be greater than 0. can be 0.000001 etc
     leverage: z.number().min(1).max(100).optional(),
     margin: z.number().min(1).optional(),
   })
