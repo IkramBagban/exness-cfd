@@ -9,18 +9,15 @@ import ChartHeader from './components/ChartHeader';
 import Orders from './components/Orders';
 import Chart from './components/Chart';
 
-const TradingDashboard = () => {
-  const [selectedSymbol, setSelectedSymbol] = useState('USOIL');
+const App = () => {
+  const [selectedSymbol, setSelectedSymbol] = useState(null);
   const [orderType, setOrderType] = useState('buy');
   const [volume, setVolume] = useState('0.01');
   const [wsConnected, setWsConnected] = useState(false);
   const [prices, setPrices] = useState({});
   const [balance, setBalance] = useState({});
-  const [orders, setOrders] = useState([]);
-  const [positions, setPositions] = useState([]);
   const chartRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
-
 
   useEffect(() => {
     const connectWS = () => {
@@ -70,10 +67,10 @@ const TradingDashboard = () => {
 
   useEffect(() => {
     loadBalance();
-    loadOrders();
+    // loadOrders();
     const interval = setInterval(() => {
       loadBalance();
-      loadOrders();
+      // loadOrders();
     }, 5000);
 
     return () => clearInterval(interval);
@@ -82,7 +79,7 @@ const TradingDashboard = () => {
   const loadBalance = async () => {
     try {
       const response = await fetch('http://localhost:3000/api/v1/balance');
-      console.log("balancer response", response)
+      // console.log("balancer response", response)
       const data = await response.json();
       setBalance(data);
     } catch (error) {
@@ -90,36 +87,9 @@ const TradingDashboard = () => {
     }
   };
 
-  const loadOrders = async () => {
-    try {
-      const response = await fetch('http://localhost:3000/api/v1/orders');
-      const data = await response.json();
-      setOrders(Array.isArray(data) ? data : []);
-
-      // Convert orders to positions format
-      const positionsData = data.map(order => ({
-        ...order,
-        currentPrice: prices[order.symbol]?.bid || order.entryPrice,
-        pnl: calculatePnL(order, prices[order.symbol])
-      }));
-      setPositions(positionsData);
-    } catch (error) {
-      console.error('Error loading orders:', error);
-    }
-  };
-
-  const calculatePnL = (order, currentPrices) => {
-    if (!currentPrices) return 0;
-    const currentPrice = order.type === 'buy' ? currentPrices.bid : currentPrices.ask;
-    const diff = order.type === 'buy'
-      ? currentPrice - order.entryPrice
-      : order.entryPrice - currentPrice;
-    return diff * order.qty;
-  };
-
   const submitOrder = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/v1/order/open', {
+      const response = await fetch('http://localhost:3000/api/v1/trade/open', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -131,7 +101,7 @@ const TradingDashboard = () => {
 
       if (response.ok) {
         loadBalance();
-        loadOrders();
+        // loadOrders();
       }
     } catch (error) {
       console.error('Error submitting order:', error);
@@ -151,6 +121,7 @@ const TradingDashboard = () => {
   const selectedInstrument = instruments.find(i => i.symbol === selectedSymbol);
   const currentBid = getDisplayPrice(selectedSymbol, 'bid');
   const currentAsk = getDisplayPrice(selectedSymbol, 'ask');
+  // console.log({ selectedSymbol, selectedInstrument })
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -165,8 +136,8 @@ const TradingDashboard = () => {
             currentBid={currentBid}
           />
 
-          <Chart chartRef={chartRef} />
-          <Orders positions={positions} />
+          <Chart chartRef={chartRef} window={"5m"} tick={{ price: prices[selectedSymbol]?.bid, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }} selectedSymbol={selectedSymbol} />
+          <Orders prices={prices} />
         </div>
 
 
@@ -178,14 +149,15 @@ const TradingDashboard = () => {
               <div className="bg-red-900/20 border border-red-500/30 rounded p-3">
                 <div className="text-xs text-red-400 mb-1">Sell</div>
                 <div className="text-lg font-mono font-bold text-red-400">
-                  {currentBid?.toFixed(selectedSymbol.includes('USD') ? 5 : 3)}
+                  {currentAsk?.toFixed(4)}
+
                 </div>
                 <div className="text-xs text-gray-400">36%</div>
               </div>
               <div className="bg-blue-900/20 border border-blue-500/30 rounded p-3">
                 <div className="text-xs text-blue-400 mb-1">Buy</div>
                 <div className="text-lg font-mono font-bold text-blue-400">
-                  {currentAsk?.toFixed(selectedSymbol.includes('USD') ? 5 : 3)}
+                  {currentBid?.toFixed(4)}
                 </div>
                 <div className="text-xs text-gray-400">64%</div>
               </div>
@@ -240,7 +212,7 @@ const TradingDashboard = () => {
                   </button>
                 </div>
               </div>
-
+              {/* 
               <div>
                 <label className="text-xs text-gray-400 mb-2 block">Take Profit</label>
                 <div className="flex items-center space-x-2">
@@ -273,20 +245,20 @@ const TradingDashboard = () => {
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
+              </div> */}
 
               <div className="grid grid-cols-2 gap-2 mt-6">
                 <button
                   onClick={() => { setOrderType('sell'); submitOrder(); }}
                   className="bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded font-medium transition-colors"
                 >
-                  Sell {currentBid?.toFixed(3)}
+                  Sell {currentAsk?.toFixed(3)}
                 </button>
                 <button
                   onClick={() => { setOrderType('buy'); submitOrder(); }}
                   className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded font-medium transition-colors"
                 >
-                  Buy {currentAsk?.toFixed(3)}
+                  Buy {currentBid?.toFixed(3)}
                 </button>
               </div>
             </div>
@@ -299,4 +271,4 @@ const TradingDashboard = () => {
   );
 };
 
-export default TradingDashboard;
+export default App;

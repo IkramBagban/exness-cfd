@@ -1,16 +1,58 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { calculatePnL } from '../utils/helpers';
+import axios from 'axios';
 
-const Orders = ({ positions }) => {
+const Orders = ({ prices }) => {
+    const [orders, setOrders] = useState([]);
+    const [positions, setPositions] = useState<any[]>([]);
+    const [tradeType, setTradeType] = useState<'open' | 'closed'>('open');
+    // const params = useQueryParams();
+
+    const loadOrders = async (tradeType: "open" | "closed") => {
+        try {
+            const response = await axios.get(`http://localhost:3000/api/v1/trades/${tradeType}`);
+            const data = response.data;
+            setOrders(Array.isArray(data) ? data : []);
+
+            // Convert orders to positions format
+            const positionsData = data.map(order => ({
+                ...order,
+                currentPrice: prices[order.symbol]?.bid || order.openPrice,
+                pnl: calculatePnL(order, prices[order.symbol])
+            }));
+            console.log("positionsData", positionsData);
+            setPositions(positionsData);
+        } catch (error) {
+            console.error('Error loading orders:', error);
+        }
+    };
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            console.log("===> ", { prices, positions })
+            if (!prices || !positions) return;
+
+            const positionsData = positions.map(order => ({
+                ...order,
+                currentPrice: prices[order.symbol]?.bid || order.openPrice,
+                pnl: calculatePnL(order, prices[order.symbol])
+            }));
+            setPositions(positionsData);
+        }, 100);
+        return () => clearInterval(interval);
+    }, [prices, positions]);
+
+    useEffect(() => {
+        loadOrders(tradeType);
+    }, [tradeType]);
+
     return (
         <div className="flex-1 flex flex-col">
             <div className="flex border-b border-gray-700">
-                <button className="flex-1 py-3 px-4 text-sm font-medium bg-gray-700 text-white">
+                <button className={`flex-1 py-3 px-4 text-sm font-medium ${tradeType === 'open' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`} onClick={() => setTradeType('open')}>
                     Open
                 </button>
-                <button className="flex-1 py-3 px-4 text-sm font-medium text-gray-400 hover:text-white">
-                    Pending
-                </button>
-                <button className="flex-1 py-3 px-4 text-sm font-medium text-gray-400 hover:text-white">
+                <button className={`flex-1 py-3 px-4 text-sm font-medium ${tradeType === 'closed' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`} onClick={() => setTradeType('closed')}>
                     Closed
                 </button>
             </div>
@@ -47,11 +89,11 @@ const Orders = ({ positions }) => {
                                     </div>
                                     <div>
                                         <div>Open price</div>
-                                        <div className="text-white">{position.entryPrice}</div>
+                                        <div className="text-white">{(position.openPrice).toFixed(3)}</div>
                                     </div>
                                     <div>
                                         <div>Current price</div>
-                                        <div className="text-white">{position.currentPrice?.toFixed(3) || position.entryPrice}</div>
+                                        <div className="text-white">{position.currentPrice?.toFixed(3) || (position.openPrice).toFixed(3)}</div>
                                     </div>
                                 </div>
 

@@ -17,7 +17,7 @@ const Header = ({ wsConnected, balance }) => {
                     <div className="text-right">
                         <div className="text-sm text-gray-400">Balance</div>
                         <div className="text-lg font-semibold text-green-400">
-                            ${balance.usd?.qty ? balance.usd.qty.toFixed(2) : '0.00'} USD
+                            ${balance?.usd_balance ? balance.usd_balance.toFixed(2) : '0.00'} USD
                         </div>
                     </div>
                 </div>
