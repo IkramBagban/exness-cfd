@@ -1,9 +1,18 @@
 import { BarChart3, Settings } from 'lucide-react'
 import React from 'react'
 
+interface Props {
+  selectedInstrument: string;
+  currentBid: number;
+  setTimeWindow: React.Dispatch<React.SetStateAction<("1m" | "5m" | "1h" | "1d")>>;
+  timeWindow: ("1m" | "5m" | "1h" | "1d");
+}
+
 const ChartHeader = ({
   selectedInstrument,
-  currentBid
+  currentBid,
+  setTimeWindow,
+  timeWindow
 }) => {
   return (
     <div className="bg-gray-800 border-b border-gray-700 p-4">
@@ -12,7 +21,16 @@ const ChartHeader = ({
           <div className="flex items-center space-x-2">
             <span className={selectedInstrument?.color}>{selectedInstrument?.icon}</span>
             <span className="text-lg font-semibold">{selectedInstrument?.name}</span>
-            <span className="text-sm text-gray-400">• 1m</span>
+            <select
+              value={timeWindow}
+              onChange={(e) => setTimeWindow(e.target.value as ("1m" | "5m" | "1h" | "1d"))}
+              className="bg-gray-700 border border-gray-600 rounded p-1"
+            >
+              <option value="1m">1m</option>
+              <option value="5m">5m</option>
+              <option value="1h">1h</option>
+              <option value="1d">1d</option>
+            </select>
           </div>
           <div className="flex items-center space-x-4 text-sm">
             <span className="text-blue-400">O: {currentBid?.toFixed(3)}</span>

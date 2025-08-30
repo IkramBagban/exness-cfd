@@ -13,7 +13,7 @@ const fetchCandles = async (symbol, interval, limit) => {
 
 interface Props {
     chartRef: any,
-    window: "1m" | "5m" | "1h",
+    window: "1m" | "5m" | "1h" | "1d",
     tick: { price: number, time: number } | null,
     selectedSymbol: string | null
 }
@@ -68,9 +68,21 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
             const time = Math.floor(tick.time / 1000); // lw chart expect seconds
 
             let lastCandle = lastCandleRef.current;
+            console.log("Window", window)
+            let shouldAddNewCandle = false;
+            switch (window) {
+                case "1m":
+                    shouldAddNewCandle = time - (lastCandle?.time || 0) >= 60;
+                    break;
+                case "5m":
+                    shouldAddNewCandle = time - (lastCandle?.time || 0) >= 300;
+                    break;
+                case "1h":
+                    shouldAddNewCandle = time - (lastCandle?.time || 0) >= 3600;
+                    break;
+            }
 
-
-            if (!lastCandle || time > lastCandle.time) {
+            if (!lastCandle || time > lastCandle.time && shouldAddNewCandle) {
                 // start a new candle
                 const newCandle = {
                     time,

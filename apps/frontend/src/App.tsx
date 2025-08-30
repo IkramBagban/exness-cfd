@@ -16,6 +16,7 @@ const App = () => {
   const [wsConnected, setWsConnected] = useState(false);
   const [prices, setPrices] = useState({});
   const [balance, setBalance] = useState({});
+  const [timeWindow, setTimeWindow] = useState<("1m" | "5m" | "1h" | "1d")>("1m");
   const chartRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
 
@@ -134,9 +135,11 @@ const App = () => {
           <ChartHeader
             selectedInstrument={selectedInstrument}
             currentBid={currentBid}
+            timeWindow={timeWindow}
+            setTimeWindow={setTimeWindow}
           />
 
-          <Chart chartRef={chartRef} window={"5m"} tick={{ price: prices[selectedSymbol]?.bid, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }} selectedSymbol={selectedSymbol} />
+          <Chart chartRef={chartRef} window={timeWindow} tick={{ price: prices[selectedSymbol]?.bid, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }} selectedSymbol={selectedSymbol} />
           <Orders prices={prices} />
         </div>
 
