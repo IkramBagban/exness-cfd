@@ -4,7 +4,7 @@ import axios from 'axios'
 
 const fetchCandles = async (symbol, interval, limit) => {
     try {
-        const response = await axios.get(`http://localhost:3000/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${2000}`);
+        const response = await axios.get(`http://localhost:3000/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`);
         return response.data;
     } catch (error) {
         console.error("Error fetching candles:", error);
@@ -20,7 +20,7 @@ interface Props {
 }
 
 const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef }: Props) => {
-    const [candles, setCandles] = React.useState<any[]>([]);
+    // const [candles, setCandles] = React.useState<any[]>([]);
     const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const lastCandleRef = useRef<any>(null); // keep track of the last candle
 

@@ -6,7 +6,6 @@ const Orders = ({ prices }) => {
     const [orders, setOrders] = useState([]);
     const [positions, setPositions] = useState<any[]>([]);
     const [tradeType, setTradeType] = useState<'open' | 'closed'>('open');
-    // const params = useQueryParams();
 
     const loadOrders = async (tradeType: "open" | "closed") => {
         try {
@@ -68,17 +67,17 @@ const Orders = ({ prices }) => {
                                         <span className="font-medium">{position.symbol}</span>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <span className="text-xs text-gray-400">Add</span>
-                                        <button className="text-xs text-blue-400 hover:text-blue-300">✏️</button>
-                                        <button className="text-xs text-gray-400 hover:text-white">ℹ️</button>
+                                        <span className={position.pnl >= 0 ? 'text-green-400' : 'text-red-400'}>
+                                            {position.pnl >= 0 ? '+' : ''}{position.pnl?.toFixed(2) || '0.00'}
+                                        </span>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-4 gap-2 text-xs text-gray-400">
-                                    <div>
+                                    <div className='flex flex-col gap-1'>
                                         <div>Type</div>
                                         <div className={position.type === 'buy' ? 'text-blue-400' : 'text-red-400'}>
-                                            {position.type === 'buy' ? '● Buy' : '● Sell'}
+                                            {position.type === 'buy' ? 'Buy' : 'Sell'}
                                         </div>
                                     </div>
                                     <div>
@@ -95,18 +94,7 @@ const Orders = ({ prices }) => {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-600">
-                                    <div className="text-xs">
-                                        <span className="text-gray-400">T/P: </span>
-                                        <span className="text-blue-400">Add</span>
-                                    </div>
-                                    <div className="text-xs">
-                                        <span className="text-gray-400">P/L: </span>
-                                        <span className={position.pnl >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                            {position.pnl >= 0 ? '+' : ''}{position.pnl?.toFixed(2) || '0.00'}
-                                        </span>
-                                    </div>
-                                </div>
+
                             </div>
                         ))}
                     </div>

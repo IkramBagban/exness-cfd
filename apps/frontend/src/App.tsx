@@ -136,7 +136,7 @@ const App = () => {
         <div className="flex-1 flex flex-col">
           <ChartHeader
             selectedInstrument={selectedInstrument}
-            currentBid={currentBid}
+            currentAsk={currentAsk}
             timeWindow={timeWindow}
             setTimeWindow={setTimeWindow}
           />
@@ -154,7 +154,7 @@ const App = () => {
           {/* current pric */}
           <div className="p-4 border-b border-gray-700">
             <div className="text-sm text-gray-400 mb-2">{selectedInstrument?.name}</div>
-            <div className="grid grid-cols-2 gap-4">
+            {/* <div className="grid grid-cols-2 gap-4">
               <div className="bg-red-900/20 border border-red-500/30 rounded p-3">
                 <div className="text-xs text-red-400 mb-1">Sell</div>
                 <div className="text-lg font-mono font-bold text-red-400">
@@ -170,26 +170,19 @@ const App = () => {
                 </div>
                 <div className="text-xs text-gray-400">64%</div>
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div className="p-4 border-b border-gray-700">
             <div className="flex mb-4">
               <button
-                onClick={() => setOrderType('buy')}
-                className={`flex-1 py-2 text-sm font-medium rounded-l ${orderType === 'buy'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
+                className={`flex-1 py-2 text-sm font-medium rounded-l  bg-blue-600 text-white`}
               >
                 Market
               </button>
               <button
-                onClick={() => setOrderType('sell')}
-                className={`flex-1 py-2 text-sm font-medium rounded-r ${orderType === 'sell'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
+                disabled={true}
+                className={`flex-1 py-2 text-sm font-medium rounded-r bg-gray-700 text-gray-300 cursor-not-allowed`}
               >
                 Pending
               </button>
@@ -200,7 +193,7 @@ const App = () => {
                 <label className="text-xs text-gray-400 mb-2 block">Volume</label>
                 <div className="flex items-center bg-gray-700 rounded">
                   <button
-                    onClick={() => setVolume(Math.max(0.01, parseFloat(volume) - 0.01).toFixed(2))}
+                    onClick={() => setVolume(Math.max(0.01, parseFloat(volume) - 0.01).toFixed(2))} // to prevent volume to go below 0.01
                     className="p-2 hover:bg-gray-600 rounded-l"
                   >
                     <Minus className="w-4 h-4" />
@@ -272,8 +265,6 @@ const App = () => {
               </div>
             </div>
           </div>
-
-
         </div>
       </div>
     </div>
