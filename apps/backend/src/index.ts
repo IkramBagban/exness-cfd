@@ -79,13 +79,13 @@ app.get("/api/v1/candles", async (req, res, next) => {
              close
       FROM ${tableName}
       WHERE symbol = '${symbol}'
-      ORDER BY bucket ASC
+      ORDER BY bucket DESC
       LIMIT ${Number(limit)}; 
     `);
 
     res.status(200).json({
       length: candles.length,
-      candles: candles.map((candle) => ({
+      candles: candles.reverse().map((candle) => ({
         ...candle,
         time: Math.floor(new Date(candle.time).getTime() / 1000),
       })),
