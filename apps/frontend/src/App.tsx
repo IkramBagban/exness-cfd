@@ -8,16 +8,17 @@ import Instruments from './components/Instruments';
 import ChartHeader from './components/ChartHeader';
 import Orders from './components/Orders';
 import Chart from './components/Chart';
+import { IChartApi } from 'lightweight-charts';
 
 const App = () => {
   const [selectedSymbol, setSelectedSymbol] = useState(null);
   const [orderType, setOrderType] = useState('buy');
   const [volume, setVolume] = useState('0.01');
   const [wsConnected, setWsConnected] = useState(false);
-  const [prices, setPrices] = useState({});
+  const [prices, setPrices] = useState<Record<string, { bid: number; ask: number; time: number }>>({});
   const [balance, setBalance] = useState({});
   const [timeWindow, setTimeWindow] = useState<("1m" | "5m" | "1h" | "1d")>("1m");
-  const chartRef = useRef(null);
+  const chartElementRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -123,6 +124,7 @@ const App = () => {
   const currentBid = getDisplayPrice(selectedSymbol, 'bid');
   const currentAsk = getDisplayPrice(selectedSymbol, 'ask');
   // console.log({ selectedSymbol, selectedInstrument })
+  const chartRef = useRef<IChartApi | null>(null);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -139,7 +141,11 @@ const App = () => {
             setTimeWindow={setTimeWindow}
           />
 
-          <Chart chartRef={chartRef} window={timeWindow} tick={{ price: prices[selectedSymbol]?.bid, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }} selectedSymbol={selectedSymbol} />
+          <Chart
+            chartElementRef={chartElementRef}
+            window={timeWindow} chartRef={chartRef}
+            tick={{ price: prices[selectedSymbol]?.ask, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }}
+            selectedSymbol={selectedSymbol} />
           <Orders prices={prices} />
         </div>
 

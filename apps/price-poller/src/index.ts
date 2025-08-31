@@ -39,8 +39,10 @@ const main = async () => {
 
     buffer.push(tick);
 
-    const bidPrice = price + (price * 5) / 100;
-    const askPrice = price - (price * 5) / 100;
+    // const bidPrice = price + (price * 5) / 100;
+    // const askPrice = price - (price * 5) / 100;
+    const bidPrice = price + (price * 1) / 100;
+    const askPrice = price;
     Promise.all([
       await pubSubManager.publish("live_feed", {
         time: new Date(data.T),

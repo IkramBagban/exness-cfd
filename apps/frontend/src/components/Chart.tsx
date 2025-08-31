@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { CandlestickSeries, createChart, ISeriesApi } from 'lightweight-charts';
+import { CandlestickData, CandlestickSeries, createChart, IChartApi, ISeriesApi, Time, WhitespaceData } from 'lightweight-charts';
 import axios from 'axios'
 
 const fetchCandles = async (symbol, interval, limit) => {
     try {
-        const response = await axios.get(`http://localhost:3000/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+        const response = await axios.get(`http://localhost:3000/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${2000}`);
         return response.data;
     } catch (error) {
         console.error("Error fetching candles:", error);
@@ -12,19 +12,19 @@ const fetchCandles = async (symbol, interval, limit) => {
 }
 
 interface Props {
-    chartRef: any,
+    chartElementRef: any,
     window: "1m" | "5m" | "1h" | "1d",
     tick: { price: number, time: number } | null,
     selectedSymbol: string | null
+    chartRef: React.RefObject<IChartApi | null>
 }
 
-const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
+const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef }: Props) => {
     const [candles, setCandles] = React.useState<any[]>([]);
     const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const lastCandleRef = useRef<any>(null); // keep track of the last candle
 
     useEffect(() => {
-        let chart;
         (async () => {
             try {
                 console.log("Setting up chart for ", { selectedSymbol, window })
@@ -33,8 +33,8 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
                     layout: { textColor: 'black', background: { type: 'solid', color: 'white' } }
                 };
 
-                chart = createChart(chartRef.current, chartOptions);
-                const candlestickSeries = chart.addSeries(CandlestickSeries, {
+                chartRef.current = createChart(chartElementRef.current, chartOptions);
+                const candlestickSeries = chartRef.current.addSeries(CandlestickSeries, {
                     upColor: '#26a69a',
                     downColor: '#ef5350',
                     borderVisible: false,
@@ -43,20 +43,29 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
                 });
                 candlestickSeriesRef.current = candlestickSeries;
 
-                chart.timeScale().fitContent();
 
-                const { candles: _candles } = await fetchCandles(selectedSymbol, window, 500);
+                chartRef.current.timeScale().fitContent();
+
+                const { candles: _candles } = await fetchCandles(selectedSymbol, window, 10);
                 if (_candles && _candles.length > 0) {
                     candlestickSeries.setData(_candles);
                     lastCandleRef.current = _candles[_candles.length - 1];
+                    chartRef.current.timeScale().setVisibleLogicalRange({ from: _candles.length - 50, to: _candles.length }); // new candles ke first 50 candles show honge view pe
+
                 }
+                if (chartRef.current)
+                    chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(range => {
+                        if (range!.from < 10) {
+                            console.log("Visible range is less than 10");
+                        }
+                    });
             } catch (error) {
                 console.error("Error in chart setup", error);
             }
         })()
 
         return () => {
-            chart?.remove();
+            chartRef.current?.remove();
         };
     }, [selectedSymbol, window])
 
@@ -65,10 +74,9 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
 
         try {
             const price = tick.price;
-            const time = Math.floor(tick.time / 1000); // lw chart expect seconds
+            const time = Math.floor(tick.time / 1000); // Lw chart expect seconds
 
             let lastCandle = lastCandleRef.current;
-            console.log("Window", window)
             let shouldAddNewCandle = false;
             switch (window) {
                 case "1m":
@@ -83,9 +91,8 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
             }
 
             if (!lastCandle || time > lastCandle.time && shouldAddNewCandle) {
-                // start a new candle
-                const newCandle = {
-                    time,
+                const newCandle: CandlestickData<Time> | WhitespaceData<Time> = {
+                    time: time as Time, // if i am doing `new Date(time).toUTCString()` then after this the live candle is getting stop 
                     open: price,
                     high: price,
                     low: price,
@@ -94,14 +101,12 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
                 candlestickSeriesRef.current.update(newCandle);
                 lastCandleRef.current = newCandle;
             } else {
-                // update current candle
                 const updatedCandle = {
                     ...lastCandle,
                     close: price,
                     high: Math.max(lastCandle.high, price),
                     low: Math.min(lastCandle.low, price),
                 };
-                // console.log("Updated candle:", updatedCandle);
                 candlestickSeriesRef.current.update(updatedCandle);
                 lastCandleRef.current = updatedCandle;
             }
@@ -112,7 +117,7 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol }: Props) => {
 
     return (
         <div className="flex-1 relative">
-            <div ref={chartRef} className="w-full h-full bg-gray-900 flex items-center justify-center" />
+            <div ref={chartElementRef} className="w-full h-full bg-gray-900 flex items-center justify-center" />
         </div>
     )
 }

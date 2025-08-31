@@ -20,7 +20,6 @@ const Orders = ({ prices }) => {
                 currentPrice: prices[order.symbol]?.bid || order.openPrice,
                 pnl: calculatePnL(order, prices[order.symbol])
             }));
-            console.log("positionsData", positionsData);
             setPositions(positionsData);
         } catch (error) {
             console.error('Error loading orders:', error);
@@ -29,7 +28,6 @@ const Orders = ({ prices }) => {
 
     useEffect(() => {
         const interval = setInterval(() => {
-            console.log("===> ", { prices, positions })
             if (!prices || !positions) return;
 
             const positionsData = positions.map(order => ({
