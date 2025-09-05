@@ -65,6 +65,7 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef 
         })()
 
         return () => {
+            chartRef.current?.timeScale().unsubscribeVisibleLogicalRangeChange(() => { });
             chartRef.current?.remove();
         };
     }, [selectedSymbol, window])

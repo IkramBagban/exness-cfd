@@ -42,13 +42,13 @@ pubSubManager.subscribe("live_feed", (msg) => {
     if (o.symbol !== symbol) continue;
 
     const positionSize = o.margin * o.leverage;
-    const markPrice = o.type === TradeType.BUY ? bid : ask; 
+    const markPrice = o.type === TradeType.BUY ? bid : ask;
     const pnl =
       (markPrice - o.openPrice) * o.qty * (o.type === TradeType.BUY ? 1 : -1);
 
     const equity = o.margin + pnl;
 
-    const mmr = 0.005; // 0.5% of position size
+    const mmr = 0.005;
     const maintenanceMargin = positionSize * mmr;
 
     if (equity <= maintenanceMargin) {

@@ -11,13 +11,16 @@ import Chart from './components/Chart';
 import { IChartApi } from 'lightweight-charts';
 
 const App = () => {
-  const [selectedSymbol, setSelectedSymbol] = useState(null);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [orderType, setOrderType] = useState('buy');
   const [volume, setVolume] = useState('0.01');
   const [wsConnected, setWsConnected] = useState(false);
   const [prices, setPrices] = useState<Record<string, { bid: number; ask: number; time: number }>>({});
   const [balance, setBalance] = useState({});
   const [timeWindow, setTimeWindow] = useState<("1m" | "5m" | "1h" | "1d")>("1m");
+  const [isTakingLeverage, setIsTakingLeverage] = useState(false);
+  const [leverage, setLeverage] = useState(5);
+  const [margin, setMargin] = useState(100);
   const chartElementRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
 
@@ -144,7 +147,7 @@ const App = () => {
           <Chart
             chartElementRef={chartElementRef}
             window={timeWindow} chartRef={chartRef}
-            tick={{ price: prices[selectedSymbol]?.ask, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }}
+            tick={{ price: prices[selectedSymbol!]?.ask, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }}
             selectedSymbol={selectedSymbol} />
           <Orders prices={prices} />
         </div>
@@ -188,32 +191,69 @@ const App = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-gray-400 mb-2 block">Volume</label>
-                <div className="flex items-center bg-gray-700 rounded">
-                  <button
-                    onClick={() => setVolume(Math.max(0.01, parseFloat(volume) - 0.01).toFixed(2))} // to prevent volume to go below 0.01
-                    className="p-2 hover:bg-gray-600 rounded-l"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
-                  <input
-                    type="number"
-                    value={volume}
-                    onChange={(e) => setVolume(e.target.value)}
-                    className="flex-1 bg-transparent text-center py-2 focus:outline-none"
-                    step="0.01"
-                  />
-                  <span className="px-2 text-xs text-gray-400">Lots</span>
-                  <button
-                    onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))}
-                    className="p-2 hover:bg-gray-600 rounded-r"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
+            <div className=''>
+              <div className='flex gap-3 items-center'>
+                <span className="text-xs text-gray-400">Leverage</span>
+                <input type="checkbox" onClick={() => setIsTakingLeverage(!isTakingLeverage)} />
               </div>
+
+              {
+                isTakingLeverage && <div className='flex gap-2'>
+                  <div className=" flex flex-col">
+
+                    <span>Margin</span>
+                    <input
+                      type='number'
+                      value={margin}
+                      onChange={(e) => setMargin(parseFloat(e.target?.value))}
+                      className="bg-gray-700 rounded flex-1 text-center py-2 focus:outline-none"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="">
+                    <span>Leverage</span>
+                    <select value={leverage} onChange={(e) => setLeverage(parseInt(e.target.value))} className="bg-gray-700 rounded flex-1 text-center py-2 focus:outline-none w-full">
+                      <option value="5">5x</option>
+                      <option value="10">10x</option>
+                      <option value="20">20x</option>
+                      <option value="100">100x</option>
+                    </select>
+
+                  </div>
+                </div>
+              }
+
+            </div>
+
+            <div className="space-y-4">
+              {
+                !isTakingLeverage && <div>
+                  <label className="text-xs text-gray-400 mb-2 block">Volume</label>
+                  <div className="flex items-center bg-gray-700 rounded">
+                    <button
+                      onClick={() => setVolume(Math.max(0.01, parseFloat(volume) - 0.01).toFixed(2))} // to prevent volume to go below 0.01
+                      className="p-2 hover:bg-gray-600 rounded-l"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={volume}
+                      onChange={(e) => setVolume(e.target.value)}
+                      className="flex-1 bg-transparent text-center py-2 focus:outline-none"
+                      step="0.01"
+                    />
+                    <span className="px-2 text-xs text-gray-400">Lots</span>
+                    <button
+                      onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))}
+                      className="p-2 hover:bg-gray-600 rounded-r"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              }
+
               {/* 
               <div>
                 <label className="text-xs text-gray-400 mb-2 block">Take Profit</label>

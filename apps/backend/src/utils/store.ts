@@ -60,7 +60,7 @@ export class StoreManager {
   }
 
   public closeTrade(orderId: string, closePrice: number) {
-    this.orders.map((o) => {
+   this.orders = this.orders.map((o) => {
       if (o.orderId === orderId) {
         o = { ...o, status: TradeStatus.CLOSED, closePrice };
       }
