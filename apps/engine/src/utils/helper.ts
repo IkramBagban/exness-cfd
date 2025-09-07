@@ -1,5 +1,6 @@
 import { TradeStatus, TradeType } from "@repo/common/types";
 import { storeManager } from "./store";
+import { createClient } from "redis";
 
 export const validateRequireEnvs = (envs: string[]) => {
   const requiredEnvs = [];
@@ -26,7 +27,7 @@ export const createTrade = (
   qty: number | undefined,
   type: TradeType,
   margin: number | undefined,
-//   balance: Record<string, { qty: number; type: TradeType }>,
+  //   balance: Record<string, { qty: number; type: TradeType }>,
   assetPrice: { bid: number; ask: number },
   symbol: string
 ) => {
@@ -141,4 +142,17 @@ export const createTrade = (
   }
 
   return { orderId, message: "Trade created successfully" };
+};
+
+export const createRedisClient = async (): Promise<any> => {
+  const client = createClient({
+    url:
+      process.env.REDIS_URL ||
+      "redis://default:WA9nGxg5rO2UR3GYCb8uwxx96zfrxV6w@redis-14029.c241.us-east-1-4.ec2.redns.redis-cloud.com:14029",
+  });
+
+  client.on("error", (err) => console.error("Redis Client Error", err));
+  await client.connect();
+  console.log("Redis connected. Listening for messages...");
+  return client;
 };
