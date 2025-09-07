@@ -1,10 +1,12 @@
 import dotenv from "dotenv";
 dotenv.config();
 import { WebSocket } from "ws";
-import { pubSubManager } from "./utils/services";
+import { pubSubManager, queueManager } from "./utils/services";
 import prismaClient from "@repo/db";
+import { QueueManager } from "@repo/services";
 
 const symbols = ["btcusdt", "ethusdt", "solusdt"];
+export const CREATE_ORDER_QUEUE = "trade-stream";
 
 const streams = symbols.map((s) => `${s}@trade`).join("/");
 const wsURL = `wss://stream.binance.com:9443/stream?streams=${streams}`;
@@ -26,6 +28,14 @@ const buffer: any[] = [];
 const main = async () => {
   console.log("connecting ws");
 
+  let updatedTickForstream:
+    | {
+        symbol: string;
+        bid: number;
+        ask: number;
+        time: Date;
+      }
+    | {} = {};
   wss.on("message", async (msg) => {
     const parsedData: Message = JSON.parse(msg.toString());
     const { data } = parsedData;
@@ -39,18 +49,34 @@ const main = async () => {
 
     buffer.push(tick);
 
-    // const bidPrice = price + (price * 5) / 100;
-    // const askPrice = price - (price * 5) / 100;
     const bidPrice = price + (price * 1) / 100;
     const askPrice = price;
+
+    updatedTickForstream = {
+      symbol: data.s,
+      bid: bidPrice,
+      ask: askPrice,
+      time: new Date(data.T),
+    };
+
     Promise.all([
-      await pubSubManager.publish("live_feed", {
+      // queueManager.push(
+      //   "feed",
+      //   JSON.stringify({
+      //     type: "tick",
+      //     time: new Date(data.T),
+      //     symbol: data.s,
+      //     bid: bidPrice,
+      //     ask: askPrice,
+      //   })
+      // ),
+      pubSubManager.publish("live_feed", {
         time: new Date(data.T),
         symbol: data.s,
         bid: bidPrice,
         ask: askPrice,
       }),
-      await pubSubManager.publish(`live_feed:${data.s}`, {
+      pubSubManager.publish(`live_feed:${data.s}`, {
         time: new Date(data.T),
         symbol: data.s,
         bid: bidPrice,
@@ -58,6 +84,13 @@ const main = async () => {
       }),
     ]);
   });
+
+  setInterval(async () => {
+    if (Object.keys(updatedTickForstream).length === 0) return;
+    await queueManager.client.xAdd(CREATE_ORDER_QUEUE, "*", {
+      message: JSON.stringify({ ...updatedTickForstream, kind: "tick" }),
+    });
+  }, 100);
 
   setInterval(async () => {
     if (buffer.length > 0) {

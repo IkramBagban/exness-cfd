@@ -1,7 +1,7 @@
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 export class PubSubManager {
-  publisher;
-  subscriber;
+  publisher: RedisClientType;
+  subscriber: RedisClientType;
   static instance: PubSubManager;
 
   constructor(url: string) {

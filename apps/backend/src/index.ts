@@ -1,15 +1,20 @@
 import cors from "cors";
+
 import prismaClient from "@repo/db";
 import authRoutes from "./routes/auth.route";
 import express, { NextFunction, Request, Response } from "express";
 import { throwError, validateRequireEnvs } from "./utils/helper";
 import { createTradeSchema, TradeType } from "@repo/common";
 import { storeManager, StoreManager } from "./utils/store";
-import { pubSubManager } from "./utils/pubsub";
+// import { pubSubManager } from "./utils/pubsub";
 
 import { TradeStatus } from "@repo/common/types";
-const app = express();
+import { createClient } from "redis";
+import { v4 as uuidv4 } from "uuid";
+import { RedisSubscriber } from "./utils/redis-subscriber";
 
+const app = express();
+const CREATE_ORDER_QUEUE = "trade-stream";
 const requiredEnvsKeys = ["JWT_SECRET"];
 
 validateRequireEnvs(requiredEnvsKeys);
@@ -26,36 +31,43 @@ const tableMap: Record<string, string> = {
   "1d": "candles_1d",
 };
 
+const client = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+});
+const redisSubscriber = new RedisSubscriber();
+client.on("error", (err: any) => console.log("Redis Client Error", err));
+client.connect();
+
 // { BITC: {bid: 12, ask: 21}}
 const assetPrices: Record<string, { bid: number; ask: number }> = {};
 
-pubSubManager.subscribe("live_feed", (msg) => {
-  const { symbol, bid, ask }: { symbol: string; bid: number; ask: number } =
-    JSON.parse(msg);
-  assetPrices[symbol] = { bid, ask };
+// pubSubManager.subscribe("live_feed", (msg) => {
+//   const { symbol, bid, ask }: { symbol: string; bid: number; ask: number } =
+//     JSON.parse(msg);
+//   assetPrices[symbol] = { bid, ask };
 
-  const allLeverageOrder = storeManager.orders.filter(
-    (o) => o.status === TradeStatus.OPEN && o.leverage && o.margin
-  );
+//   const allLeverageOrder = storeManager.orders.filter(
+//     (o) => o.status === TradeStatus.OPEN && o.leverage && o.margin
+//   );
 
-  for (const o of allLeverageOrder) {
-    if (o.symbol !== symbol) continue;
+//   for (const o of allLeverageOrder) {
+//     if (o.symbol !== symbol) continue;
 
-    const positionSize = o.margin * o.leverage;
-    const markPrice = o.type === TradeType.BUY ? bid : ask;
-    const pnl =
-      (markPrice - o.openPrice) * o.qty * (o.type === TradeType.BUY ? 1 : -1);
+//     const positionSize = o.margin * o.leverage;
+//     const markPrice = o.type === TradeType.BUY ? bid : ask;
+//     const pnl =
+//       (markPrice - o.openPrice) * o.qty * (o.type === TradeType.BUY ? 1 : -1);
 
-    const equity = o.margin + pnl;
+//     const equity = o.margin + pnl;
 
-    const mmr = 0.005;
-    const maintenanceMargin = positionSize * mmr;
+//     const mmr = 0.005;
+//     const maintenanceMargin = positionSize * mmr;
 
-    if (equity <= maintenanceMargin) {
-      storeManager.closeTrade(o.orderId, markPrice);
-    }
-  }
-});
+//     if (equity <= maintenanceMargin) {
+//       storeManager.closeTrade(o.orderId, markPrice);
+//     }
+//   }
+// });
 
 app.get("/api/v1/candles", async (req, res, next) => {
   const { symbol = "BTCUSDT", interval = "1h", limit = "100" } = req.query;
@@ -99,6 +111,7 @@ app.get("/api/v1/candles", async (req, res, next) => {
 app.post("/api/v1/trade/open", async (req, res, next) => {
   try {
     // have to add validation and handler error for symbol, user can send wrong symbol
+    const startTime = Date.now();
     const { type, symbol, qty, margin, leverage } = req.body as {
       type: TradeType;
       symbol: string;
@@ -120,101 +133,50 @@ app.post("/api/v1/trade/open", async (req, res, next) => {
     const balance = store.getBalance();
     console.log("balance", balance);
 
-    if (!assetPrices[symbol]) {
-      throwError(400, "Invalid or unavailable symbol");
-    }
+    // if (!assetPrices[symbol]) {
+    //   throwError(400, "Invalid or unavailable symbol");
+    // }
 
     const assetPrice = assetPrices[symbol];
-    let orderId;
-    // in both buy and sell, we are decreasing the quantity. because this route is only to make order open, not close. so in both the cases user will making an order.
-    if (!leverage) {
-      if (!qty) throwError(400, "qty should be greater than 0");
-      if (type === TradeType.BUY) {
-        if (!balance["usd"] || assetPrice.bid * qty > balance["usd"]?.qty) {
-          throwError(400, "Insufficient balance");
-        }
+    let id = uuidv4();
 
-        if (!balance[symbol]) {
-          balance[symbol] = { qty: 0, type: TradeType.BUY };
-        }
+    await client.xAdd(CREATE_ORDER_QUEUE, "*", {
+      message: JSON.stringify({
+        id: id,
+        kind: "create-order",
+        type,
+        symbol,
+        qty,
+        margin,
+        leverage,
+      }),
+    });
 
-        balance[symbol].qty += qty;
-        balance[symbol].type = TradeType.BUY;
+    try {
+      let responseFromEngine = await redisSubscriber.waitForMessage(id);
+      console.log("RESPONSE FORM ENGINE", responseFromEngine.message);
+      const errorResponse = JSON.parse(responseFromEngine.message.error);
+      const dataResponse = JSON.parse(responseFromEngine.message.data);
 
-        orderId = store.storeTrade({
-          type: TradeType.BUY,
-          symbol,
-          qty,
-          openPrice: assetPrice.bid,
-          status: TradeStatus.OPEN,
-        });
-        store.updateBalance("usd", balance["usd"].qty - assetPrice.bid * qty);
-        store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
-      } else if (type === TradeType.SELL) {
-        // (rough) need to check again..... good night
-        if (!balance["usd"] || assetPrice.ask * qty > balance["usd"]?.qty) {
-          throwError(400, "Insufficient balance");
-        }
-
-        if (!balance[symbol]) {
-          balance[symbol] = { qty: 0, type: TradeType.SELL };
-        }
-
-        balance[symbol].qty += qty;
-        balance[symbol].type = TradeType.SELL;
-
-        orderId = store.storeTrade({
-          type: TradeType.SELL,
-          symbol,
-          qty,
-          openPrice: assetPrice.ask,
-          status: TradeStatus.OPEN,
-        });
-        store.updateBalance("usd", balance["usd"].qty - assetPrice.ask * qty);
-        store.updateBalance(symbol, balance[symbol].qty, balance[symbol].type);
-      }
-    } else {
-      if (margin! > store.getBalance()["usd"].qty) {
-        throwError(400, "Insufficient balance");
-      }
-      const positionSize = margin! * leverage;
-
-      if (type === TradeType.BUY) {
-        const qty = positionSize / assetPrice.bid;
-        store.updateBalance("usd", balance["usd"].qty - margin!, TradeType.BUY);
-        store.updateBalance(symbol, qty, TradeType.BUY);
-        orderId = store.storeTrade({
-          type: TradeType.BUY,
-          symbol,
-          qty,
-          openPrice: assetPrice.bid,
-          status: TradeStatus.OPEN,
-          margin,
-          leverage,
-        });
-      } else if (type === TradeType.SELL) {
-        const qty = positionSize / assetPrice.ask;
-
-        store.updateBalance(
-          "usd",
-          balance["usd"].qty - margin!,
-          TradeType.SELL
-        );
-        store.updateBalance(symbol, qty, TradeType.SELL);
-        orderId = store.storeTrade({
-          type: TradeType.SELL,
-          symbol,
-          qty,
-          openPrice: assetPrice.ask,
-          status: TradeStatus.OPEN,
-          margin,
-          leverage,
+      if (Object.keys(dataResponse).length > 0) {
+        res.status(200).json({
+          message: "Order placed",
+          time: Date.now() - startTime,
+          data: dataResponse,
         });
       } else {
-        throwError(400, "Invalid order type it should be `buy` | `sell`");
+        res.status(errorResponse.statusCode || 500).json({
+          error: errorResponse.message,
+          time: Date.now() - startTime,
+        });
       }
+    } catch (e) {
+      console.log("E", e);
+      res.status(500).json({
+        message: "Trade not placed",
+        error: e,
+      });
     }
-    res.status(201).json({ message: "Order created successfully", orderId });
   } catch (error) {
     console.error("Error creating order:", error);
     next(error);

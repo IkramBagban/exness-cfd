@@ -1,6 +1,7 @@
-import { createClient } from "redis";
+import { createClient, RedisClientType } from "redis";
 
-export const createRedisClient = async (redisURL: string) => {
+// @ts-ignore
+export const createRedisClient = async (redisURL: string): any => {
   try {
     const client = createClient({ url: redisURL });
 

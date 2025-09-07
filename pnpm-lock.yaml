@@ -70,6 +70,24 @@ importers:
         specifier: ^10.0.0
         version: 10.0.0
 
+  apps/engine:
+    dependencies:
+      '@repo/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@types/uuid':
+        specifier: ^10.0.0
+        version: 10.0.0
+      dotenv:
+        specifier: ^17.2.1
+        version: 17.2.1
+      redis:
+        specifier: ^5.8.2
+        version: 5.8.2
+      uuid:
+        specifier: 8.1.0
+        version: 8.1.0
+
   apps/frontend:
     dependencies:
       '@tailwindcss/vite':
