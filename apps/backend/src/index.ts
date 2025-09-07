@@ -230,6 +230,39 @@ app.get("/api/v1/balance", async (req, res, next) => {
   }
 });
 
+app.post("/api/v1/trade/close/:orderId", async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const id = uuidv4();
+    await client.xAdd(CREATE_ORDER_QUEUE, "*", {
+      message: JSON.stringify({
+        id: id,
+        kind: "close-trade",
+        orderId,
+      }),
+    });
+
+    const responseFromEngine = await redisSubscriber.waitForMessage(id);
+
+    const errorResponse = JSON.parse(responseFromEngine.message.error);
+    const dataResponse = JSON.parse(responseFromEngine.message.data);
+
+    if (Object.keys(dataResponse).length > 0) {
+      res.status(200).json({
+        message: "Trade closed",
+        data: dataResponse,
+      });
+    } else {
+      res.status(errorResponse.statusCode || 500).json({
+        error: errorResponse.message,
+      });
+    }
+  } catch (error) {
+    console.error("Error closing trade:", error);
+    next(error);
+  }
+});
+
 app.get("/api/v1/trades/closed", async (req, res, next) => {
   try {
     const trades = StoreManager.getInstance().getClosedTrades();

@@ -64,6 +64,100 @@ export const getOpenOrders = async ({
   }
 };
 
+export const handleCloseOrder = async ({
+  id,
+  orderId,
+  client,
+}: {
+  id: string;
+  orderId: string;
+  client: RedisClientType;
+}) => {
+  const trade = storeManager.getTradeById(orderId);
+
+  if (!trade) {
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode: 404, message: "Trade not found" }),
+      data: "{}",
+    });
+    return;
+  }
+
+  const marketPrice =
+    trade.type === TradeType.BUY
+      ? assetPrices[trade.symbol].ask
+      : assetPrices[trade.symbol].bid;
+
+  if (!marketPrice) {
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({
+        statusCode: 400,
+        message: "Market price not available for the symbol",
+      }),
+      data: "{}",
+    });
+    return;
+  }
+
+  const balance = storeManager.getBalance();
+  let newUsdBalance: number;
+
+  if (trade.margin && trade.leverage) {
+    const pnl =
+      trade.type === TradeType.BUY
+        ? (marketPrice - trade.openPrice) * trade.qty
+        : (trade.openPrice - marketPrice) * trade.qty;
+
+    const equity = trade.margin + pnl;
+    newUsdBalance = balance.usd.qty + equity;
+
+    console.log(`Trade ${orderId} closed with PnL: ${pnl}`);
+  } else {
+    if (!trade.qty) {
+      await client.xAdd(CALLBACK_QUEUE, "*", {
+        id,
+        error: JSON.stringify({
+          statusCode: 400,
+          message: "Trade quantity is zero or undefined",
+        }),
+        data: "{}",
+      });
+      return;
+    }
+
+    const proceeds = trade.qty * marketPrice;
+    newUsdBalance = balance.usd.qty + proceeds;
+
+    const pnl =
+      (trade.type === TradeType.BUY
+        ? marketPrice - trade.openPrice
+        : trade.openPrice - marketPrice) * trade.qty;
+
+    console.log({
+      orderId,
+      pnl,
+      marketPrice,
+      openPrice: trade.openPrice,
+      qty: trade.qty,
+      proceeds,
+      balance: balance.usd.qty,
+      newUsdBalance,
+      prices: assetPrices[trade.symbol],
+    });
+  }
+
+  await storeManager.closeTrade(orderId, marketPrice);
+  storeManager.updateBalance("usd", newUsdBalance!);
+
+  await client.xAdd(CALLBACK_QUEUE, "*", {
+    id,
+    error: "{}",
+    data: JSON.stringify({ message: "Trade closed successfully" }),
+  });
+};
+
 export const getBalance = async ({
   id,
   client,

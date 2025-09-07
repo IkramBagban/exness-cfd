@@ -2,12 +2,20 @@ import { createClient, RedisClientType } from "redis";
 import dotenv from "dotenv";
 import { createRedisClient, createTrade } from "./utils/helper";
 import { storeManager } from "./utils/store";
-import { assetPrices, CALLBACK_QUEUE, CREATE_ORDER_QUEUE } from "./utils/constants";
-import { getOpenOrders, handleCreateOrder, getBalance, checkLiquidation } from "./utils/action";
+import {
+  assetPrices,
+  CALLBACK_QUEUE,
+  CREATE_ORDER_QUEUE,
+} from "./utils/constants";
+import {
+  getOpenOrders,
+  handleCreateOrder,
+  getBalance,
+  checkLiquidation,
+  handleCloseOrder,
+} from "./utils/action";
 
 dotenv.config();
-
-
 
 const handleMessage = async (client: RedisClientType, msg: any) => {
   const USDBalance = storeManager.getBalance().usd?.qty;
@@ -19,10 +27,16 @@ const handleMessage = async (client: RedisClientType, msg: any) => {
     case "get-open-trades":
       await getOpenOrders({ id: msg.id, client });
       break;
+    case "close-trade":
+      await handleCloseOrder({
+        orderId: msg.orderId,
+        id: msg.id,
+        client,
+      });
     case "get-balance":
       await getBalance({ id: msg.id, client });
       break;
-    case "tick": 
+    case "tick":
       assetPrices[msg.symbol] = { bid: msg.bid, ask: msg.ask };
       checkLiquidation();
       break;
