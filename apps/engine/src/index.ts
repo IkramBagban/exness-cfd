@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { createRedisClient, createTrade } from "./utils/helper";
 import { storeManager } from "./utils/store";
 import { assetPrices, CALLBACK_QUEUE, CREATE_ORDER_QUEUE } from "./utils/constants";
-import { getOpenOrders, handleCreateOrder, getBalance } from "./utils/action";
+import { getOpenOrders, handleCreateOrder, getBalance, checkLiquidation } from "./utils/action";
 
 dotenv.config();
 
@@ -22,8 +22,9 @@ const handleMessage = async (client: RedisClientType, msg: any) => {
     case "get-balance":
       await getBalance({ id: msg.id, client });
       break;
-    case "tick":
+    case "tick": 
       assetPrices[msg.symbol] = { bid: msg.bid, ask: msg.ask };
+      checkLiquidation();
       break;
     default:
       console.warn("Invalid message format, missing or unknown 'kind' field");

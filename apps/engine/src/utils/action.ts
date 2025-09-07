@@ -2,6 +2,7 @@ import { RedisClientType } from "redis";
 import { assetPrices, CALLBACK_QUEUE } from "./constants";
 import { createTrade } from "./helper";
 import { storeManager } from "./store";
+import { TradeType, TradeStatus } from "@repo/common/types";
 
 export const handleCreateOrder = async (
   client: RedisClientType,
@@ -86,5 +87,54 @@ export const getBalance = async ({
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
     });
+  }
+};
+
+export const checkLiquidation = () => {
+  const openTrades = storeManager.getOpenTrades();
+  if (!openTrades || openTrades.length === 0) return;
+
+  const liquidatedTrades: string[] = [];
+
+  for (const trade of openTrades) {
+    if (!trade.leverage || !trade.margin) continue;
+
+    const currentPrices = assetPrices[trade.symbol];
+    if (!currentPrices) continue;
+
+    const markPrice =
+      trade.type === TradeType.BUY ? currentPrices.bid : currentPrices.ask;
+
+    const pnl =
+      trade.type === TradeType.BUY
+        ? (markPrice - trade.openPrice) * trade.qty
+        : (trade.openPrice - markPrice) * trade.qty;
+
+    const equity = trade.margin + pnl;
+
+    const positionSize = trade.margin * trade.leverage;
+    const maintenanceMarginRatio = 0.005; // 0.5%
+    const maintenanceMargin = positionSize * maintenanceMarginRatio;
+
+    if (equity <= maintenanceMargin) {
+      console.log(
+        `Liquidating trade ${trade.orderId}: equity ${equity} <= maintenance margin ${maintenanceMargin}`
+      );
+
+      storeManager.closeTrade(trade.orderId, markPrice);
+
+      const balance = storeManager.getBalance();
+      const newUsdBalance = balance.usd.qty + equity; // equity can be negative here, so if user get liquidated with their margin and some loss, their usd balance will decrease.
+      storeManager.updateBalance("usd", newUsdBalance);
+
+      liquidatedTrades.push(trade.orderId);
+    }
+  }
+
+  if (liquidatedTrades.length > 0) {
+    console.log(
+      `Liquidated ${liquidatedTrades.length} trades:`,
+      liquidatedTrades
+    );
   }
 };
