@@ -281,3 +281,58 @@ export const checkLiquidation = () => {
     );
   }
 };
+
+export const getAssets = async ({
+  id,
+  client,
+}: {
+  id: string;
+  client: any;
+}) => {
+  try {
+    const assetsMetadata = [
+      {
+        name: "Bitcoin",
+        symbol: "BTCUSDT",
+        imageUrl: "https://cryptologos.cc/logos/bitcoin-btc-logo.png"
+      },
+      {
+        name: "Ethereum",
+        symbol: "ETHUSDT", 
+        imageUrl: "https://cryptologos.cc/logos/ethereum-eth-logo.png"
+      },
+      {
+        name: "Solana",
+        symbol: "SOLUSDT",
+        imageUrl: "https://cryptologos.cc/logos/solana-sol-logo.png"
+      }
+    ];
+
+    const assets = assetsMetadata.map(asset => {
+      const livePrice = assetPrices[asset.symbol];
+      return {
+        name: asset.name,
+        symbol: asset.symbol,
+        buyPrice: livePrice?.ask || 0,
+        sellPrice: livePrice?.bid || 0,
+        imageUrl: asset.imageUrl
+      };
+    });
+
+    const responseData = { assets };
+
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(responseData),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};

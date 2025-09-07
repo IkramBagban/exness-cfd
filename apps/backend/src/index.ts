@@ -288,6 +288,31 @@ app.get("/api/v1/trades/closed", async (req, res, next) => {
   }
 });
 
+app.get("/api/v1/assets", async (req, res, next) => {
+  try {
+    const id = uuidv4();
+    await client.xAdd(CREATE_ORDER_QUEUE, "*", {
+      message: JSON.stringify({
+        id: id,
+        kind: "get-assets"
+      })
+    });
+    let responseFromEngine = await redisSubscriber.waitForMessage(id);
+    const errorResponse = JSON.parse(responseFromEngine.message.error);
+    const dataResponse = JSON.parse(responseFromEngine.message.data);
+    if (Object.keys(dataResponse).length > 0) {
+      res.status(200).json(dataResponse);
+    } else {
+      res.status(errorResponse.statusCode || 500).json({
+        error: errorResponse.message,
+      });
+    }
+  } catch (error) {
+    console.error("Error fetching assets:", error);
+    next(error);
+  }
+});
+
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   const errorMessage = err.message || "Internal Server error";
   const statusCode = err.statusCode || 500;

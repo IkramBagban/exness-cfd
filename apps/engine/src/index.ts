@@ -14,6 +14,7 @@ import {
   checkLiquidation,
   handleCloseOrder,
   getClosedTrades,
+  getAssets,
 } from "./utils/action";
 
 dotenv.config();
@@ -37,6 +38,9 @@ const handleMessage = async (client: RedisClientType, msg: any) => {
       break;
     case "get-closed-trades":
       await getClosedTrades({ id: msg.id, client });
+      break;
+    case "get-assets":
+      await getAssets({ id: msg.id, client });
       break;
     case "get-balance":
       await getBalance({ id: msg.id, client });
