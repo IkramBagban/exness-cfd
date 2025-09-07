@@ -184,6 +184,55 @@ export const getBalance = async ({
   }
 };
 
+export const getClosedTrades = async ({
+  id,
+  client,
+}: {
+  id: string;
+  client: any;
+}) => {
+  try {
+    const closedTrades = storeManager.getClosedTrades() || [];
+    
+    const formattedTrades = closedTrades.map(trade => {
+      const pnl = trade.type === TradeType.BUY 
+        ? (trade.closePrice! - trade.openPrice) * trade.qty
+        : (trade.openPrice - trade.closePrice!) * trade.qty;
+
+      const response: any = {
+        orderId: trade.orderId,
+        type: trade.type,
+        openPrice: trade.openPrice * 10000, 
+        closePrice: trade.closePrice! * 10000, 
+        pnl: pnl, 
+      };
+
+      if (trade.leverage && trade.margin) {
+        response.leverage = trade.leverage;
+        response.margin = trade.margin;
+      } else {
+        response.qty = trade.qty;
+      }
+
+      return response;
+    });
+
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(formattedTrades),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};
+
 export const checkLiquidation = () => {
   const openTrades = storeManager.getOpenTrades();
   if (!openTrades || openTrades.length === 0) return;
