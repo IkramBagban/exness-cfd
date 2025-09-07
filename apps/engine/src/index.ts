@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { createRedisClient, createTrade } from "./utils/helper";
 import { storeManager } from "./utils/store";
 import { assetPrices, CALLBACK_QUEUE, CREATE_ORDER_QUEUE } from "./utils/constants";
-import { getOpenOrders, handleCreateOrder } from "./utils/action";
+import { getOpenOrders, handleCreateOrder, getBalance } from "./utils/action";
 
 dotenv.config();
 
@@ -18,6 +18,9 @@ const handleMessage = async (client: RedisClientType, msg: any) => {
       break;
     case "get-open-trades":
       await getOpenOrders({ id: msg.id, client });
+      break;
+    case "get-balance":
+      await getBalance({ id: msg.id, client });
       break;
     case "tick":
       assetPrices[msg.symbol] = { bid: msg.bid, ask: msg.ask };

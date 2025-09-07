@@ -62,3 +62,29 @@ export const getOpenOrders = async ({
     });
   }
 };
+
+export const getBalance = async ({
+  id,
+  client,
+}: {
+  id: string;
+  client: any;
+}) => {
+  try {
+    const balance = storeManager.getBalance();
+    const responseData = { usd_balance: balance.usd?.qty };
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(responseData),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};

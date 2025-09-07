@@ -205,10 +205,25 @@ app.get("/api/v1/trades/open", async (req, res, next) => {
   }
 });
 
-app.get("/api/v1/balance", (req, res, next) => {
+app.get("/api/v1/balance", async (req, res, next) => {
   try {
-    const balance = StoreManager.getInstance().getBalance();
-    res.status(200).json({ usd_balance: balance.usd?.qty });
+    const id = uuidv4();
+    await client.xAdd(CREATE_ORDER_QUEUE, "*", {
+      message: JSON.stringify({
+        id: id,
+        kind: "get-balance"
+      })
+    });
+    let responseFromEngine = await redisSubscriber.waitForMessage(id);
+    const errorResponse = JSON.parse(responseFromEngine.message.error);
+    const dataResponse = JSON.parse(responseFromEngine.message.data);
+    if (Object.keys(dataResponse).length > 0) {
+      res.status(200).json(dataResponse);
+    } else {
+      res.status(errorResponse.statusCode || 500).json({
+        error: errorResponse.message,
+      });
+    }
   } catch (error) {
     console.error("Error fetching balance:", error);
     next(error);
