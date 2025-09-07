@@ -50,7 +50,9 @@ export class RedisSubscriber {
       this.callbacks[callbackId] = resolve;
       setTimeout(() => {
         if (this.callbacks[callbackId]) {
-          reject();
+          
+          console.log("Timeout waiting for message...");
+          reject("Timeout waiting for message");
         }
       }, 5000);
     });

@@ -3,12 +3,9 @@ import cors from "cors";
 import prismaClient from "@repo/db";
 import authRoutes from "./routes/auth.route";
 import express, { NextFunction, Request, Response } from "express";
-import { throwError, validateRequireEnvs } from "./utils/helper";
+import { validateRequireEnvs } from "./utils/helper";
 import { createTradeSchema, TradeType } from "@repo/common";
-import { storeManager, StoreManager } from "./utils/store";
-// import { pubSubManager } from "./utils/pubsub";
-
-import { TradeStatus } from "@repo/common/types";
+import { StoreManager } from "./utils/store";
 import { createClient } from "redis";
 import { v4 as uuidv4 } from "uuid";
 import { RedisSubscriber } from "./utils/redis-subscriber";
@@ -131,7 +128,7 @@ app.post("/api/v1/trade/open", async (req, res, next) => {
 
     const store = StoreManager.getInstance();
     const balance = store.getBalance();
-    console.log("balance", balance);
+    // console.log("balance", balance);
 
     // if (!assetPrices[symbol]) {
     //   throwError(400, "Invalid or unavailable symbol");
@@ -154,7 +151,7 @@ app.post("/api/v1/trade/open", async (req, res, next) => {
 
     try {
       let responseFromEngine = await redisSubscriber.waitForMessage(id);
-      console.log("RESPONSE FORM ENGINE", responseFromEngine.message);
+      console.log("response from engine", responseFromEngine);
       const errorResponse = JSON.parse(responseFromEngine.message.error);
       const dataResponse = JSON.parse(responseFromEngine.message.data);
 
@@ -185,8 +182,23 @@ app.post("/api/v1/trade/open", async (req, res, next) => {
 
 app.get("/api/v1/trades/open", async (req, res, next) => {
   try {
-    const trades = StoreManager.getInstance().getOpenTrades();
-    res.status(200).json(trades);
+    const id = uuidv4();
+    await client.xAdd(CREATE_ORDER_QUEUE, "*", {
+      message: JSON.stringify({
+        id: id,
+        kind: "get-open-trades"
+      })
+    });
+    let responseFromEngine = await redisSubscriber.waitForMessage(id);
+    const errorResponse = JSON.parse(responseFromEngine.message.error);
+    const dataResponse = JSON.parse(responseFromEngine.message.data);
+    if (Object.keys(dataResponse).length > 0) {
+      res.status(200).json(dataResponse);
+    } else {
+      res.status(errorResponse.statusCode || 500).json({
+        error: errorResponse.message,
+      });
+    }
   } catch (error) {
     console.error("Error fetching open trades:", error);
     next(error);

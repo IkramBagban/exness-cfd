@@ -7,7 +7,7 @@ dotenv.config();
 export const CREATE_ORDER_QUEUE = "trade-stream";
 export const CALLBACK_QUEUE = "callback-queue";
 
-console.log("Redis URL:", process.env.REDIS_URL);
+// console.log("Redis URL:", process.env.REDIS_URL);
 
 const assetPrices: Record<string, { bid: number; ask: number }> = {};
 
@@ -32,7 +32,7 @@ const main = async () => {
       { COUNT: 10, BLOCK: 0 }
     );
 
-    console.log("Messages:", JSON.stringify(messages));
+    // console.log("Messages:", JSON.stringify(messages));
 
     if (!messages) {
       continue;
@@ -48,14 +48,16 @@ const main = async () => {
 
       // currently i am not doing this based on user. so just taking the usd balance which currently global here, means currently there is no concept of user in this.
       const USDBalance = storeManager.getBalance().usd?.qty;
-      console.log("USDBalance", USDBalance);
       const msg = JSON.parse(values.message as string);
+      console.log("msg", msg);
       if (!msg.kind) {
         console.log("Invalid message format, missing 'kind' field");
         continue;
+        // console.log("USDBalance", USDBalance);
       }
 
       if (msg.kind === "create-order") {
+        console.log("create trade USDBalance", USDBalance);
         const { symbol, type, qty, leverage, margin, id } = msg;
         try {
           const tradeResponse = createTrade(
@@ -63,11 +65,9 @@ const main = async () => {
             qty,
             type,
             margin,
-            // USDBalance,
             assetPrices[symbol],
             symbol
           );
-
           await client.xAdd(CALLBACK_QUEUE, "*", {
             id,
             error: "{}",
@@ -83,11 +83,30 @@ const main = async () => {
             data: "{}",
           });
         }
+      } else if (msg.kind === "get-open-trades") {
+        const { id } = msg;
+        try {
+          const openTrades = storeManager.getOpenTrades() || [];
+          await client.xAdd(CALLBACK_QUEUE, "*", {
+            id,
+            error: "{}",
+            data: JSON.stringify(openTrades),
+          });
+        } catch (error) {
+          const statusCode = (error as any).statusCode || 500;
+          const errorMessage =
+            (error as any).message || "Internal Server Error";
+          await client.xAdd(CALLBACK_QUEUE, "*", {
+            id,
+            error: JSON.stringify({ statusCode, message: errorMessage, error }),
+            data: "{}",
+          });
+        }
       } else if (msg.kind === "tick") {
         const { symbol, bid, ask, time } = msg;
         assetPrices[symbol] = { bid, ask };
       }
-      console.log("Received message:", msg);
+      // console.log("Received message:", msg);
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
