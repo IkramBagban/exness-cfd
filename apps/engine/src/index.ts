@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from "redis";
 import dotenv from "dotenv";
-import { createRedisClient, createTrade } from "./utils/helper";
+import { createRedisClient } from "./utils/helper";
 import { storeManager } from "./utils/store";
 import {
   assetPrices,
@@ -19,8 +19,9 @@ import {
 
 dotenv.config();
 
-const handleMessage = async (client: RedisClientType, msg: any) => {
+const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
   const USDBalance = storeManager.getBalance().usd?.qty;
+  console.log("\n\n============= Received message:\n", msg);
 
   switch (msg.kind) {
     case "create-order":
@@ -57,23 +58,31 @@ const handleMessage = async (client: RedisClientType, msg: any) => {
 const main = async () => {
   const client = await createRedisClient();
 
+  let lastId = "0";
+
   while (true) {
     const messages = await client.xRead(
-      { key: CREATE_ORDER_QUEUE, id: "$" },
-      { COUNT: 10, BLOCK: 0 }
+      { key: CREATE_ORDER_QUEUE, id: lastId },
+      { COUNT: 50, BLOCK: 0 } 
     );
 
     if (!messages) continue;
 
     for (const { messages: msgs } of messages) {
-      for (const { message: values } of msgs) {
-        const msg = JSON.parse(values.message as string);
-        await handleMessage(client, msg);
+      for (const { id, message: values } of msgs) {
+        try {
+          const msg = JSON.parse(values.message as string);
+          await handleMessage(client, msg, id);
+        } catch (err) {
+          console.error("Error handling message:", err);
+        }
+        lastId = id;
       }
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 };
 
-main();
+main().catch((err) => {
+  console.error("Engine crashed:", err);
+  process.exit(1);
+});
