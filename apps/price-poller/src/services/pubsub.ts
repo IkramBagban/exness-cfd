@@ -45,5 +45,3 @@ export class PubSubManager {
     });
   }
 }
-
-// export const pubSubManager = PubSubManager.getInstance();

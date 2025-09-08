@@ -5,7 +5,6 @@ import authRoutes from "./routes/auth.route";
 import express, { NextFunction, Request, Response } from "express";
 import { validateRequireEnvs } from "./utils/helper";
 import { createTradeSchema, TradeType } from "@repo/common";
-import { StoreManager } from "./utils/store";
 import { createClient } from "redis";
 import { v4 as uuidv4 } from "uuid";
 import { RedisSubscriber } from "./utils/redis-subscriber";
@@ -35,36 +34,6 @@ const redisSubscriber = new RedisSubscriber();
 client.on("error", (err: any) => console.log("Redis Client Error", err));
 client.connect();
 
-// { BITC: {bid: 12, ask: 21}}
-const assetPrices: Record<string, { bid: number; ask: number }> = {};
-
-// pubSubManager.subscribe("live_feed", (msg) => {
-//   const { symbol, bid, ask }: { symbol: string; bid: number; ask: number } =
-//     JSON.parse(msg);
-//   assetPrices[symbol] = { bid, ask };
-
-//   const allLeverageOrder = storeManager.orders.filter(
-//     (o) => o.status === TradeStatus.OPEN && o.leverage && o.margin
-//   );
-
-//   for (const o of allLeverageOrder) {
-//     if (o.symbol !== symbol) continue;
-
-//     const positionSize = o.margin * o.leverage;
-//     const markPrice = o.type === TradeType.BUY ? bid : ask;
-//     const pnl =
-//       (markPrice - o.openPrice) * o.qty * (o.type === TradeType.BUY ? 1 : -1);
-
-//     const equity = o.margin + pnl;
-
-//     const mmr = 0.005;
-//     const maintenanceMargin = positionSize * mmr;
-
-//     if (equity <= maintenanceMargin) {
-//       storeManager.closeTrade(o.orderId, markPrice);
-//     }
-//   }
-// });
 
 app.get("/api/v1/candles", async (req, res, next) => {
   const { symbol = "BTCUSDT", interval = "1h", limit = "100" } = req.query;
@@ -126,15 +95,6 @@ app.post("/api/v1/trade/open", async (req, res, next) => {
       });
     }
 
-    const store = StoreManager.getInstance();
-    const balance = store.getBalance();
-    // console.log("balance", balance);
-
-    // if (!assetPrices[symbol]) {
-    //   throwError(400, "Invalid or unavailable symbol");
-    // }
-
-    const assetPrice = assetPrices[symbol];
     let id = uuidv4();
 
     await client.xAdd(CREATE_ORDER_QUEUE, "*", {
@@ -186,8 +146,8 @@ app.get("/api/v1/trades/open", async (req, res, next) => {
     await client.xAdd(CREATE_ORDER_QUEUE, "*", {
       message: JSON.stringify({
         id: id,
-        kind: "get-open-trades"
-      })
+        kind: "get-open-trades",
+      }),
     });
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
@@ -208,12 +168,17 @@ app.get("/api/v1/trades/open", async (req, res, next) => {
 app.get("/api/v1/balance", async (req, res, next) => {
   try {
     const id = uuidv4();
-    await client.xAdd(CREATE_ORDER_QUEUE, "*", {
-      message: JSON.stringify({
-        id: id,
-        kind: "get-balance"
-      })
-    });
+    await client.xAdd(
+      CREATE_ORDER_QUEUE,
+      "*",
+      {
+        message: JSON.stringify({
+          id: id,
+          kind: "get-balance",
+        }),
+      },
+      {}
+    );
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
     const dataResponse = JSON.parse(responseFromEngine.message.data);
@@ -269,8 +234,8 @@ app.get("/api/v1/trades/closed", async (req, res, next) => {
     await client.xAdd(CREATE_ORDER_QUEUE, "*", {
       message: JSON.stringify({
         id: id,
-        kind: "get-closed-trades"
-      })
+        kind: "get-closed-trades",
+      }),
     });
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
@@ -294,8 +259,8 @@ app.get("/api/v1/assets", async (req, res, next) => {
     await client.xAdd(CREATE_ORDER_QUEUE, "*", {
       message: JSON.stringify({
         id: id,
-        kind: "get-assets"
-      })
+        kind: "get-assets",
+      }),
     });
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);

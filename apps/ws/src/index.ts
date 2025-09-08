@@ -16,8 +16,6 @@ const main = async () => {
     if (!isSubscribed) {
       isSubscribed = true;
       await pubSubManager.subscribe("live_feed", (msg) => {
-        // console.log("msg ==> ", msg);
-
         wss.clients.forEach((client) => {
           if (client.readyState === client.OPEN) {
             client.send(msg);

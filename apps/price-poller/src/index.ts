@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
+import prismaClient from "@repo/db";
 dotenv.config();
 import { WebSocket } from "ws";
-import { pubSubManager, queueManager } from "./utils/services";
-import prismaClient from "@repo/db";
-import { QueueManager } from "@repo/services";
+import { pubSubManager } from "./utils/services";
+import { createRedisClient } from "@repo/services";
 
 const symbols = ["btcusdt", "ethusdt", "solusdt"];
 export const CREATE_ORDER_QUEUE = "trade-stream";
@@ -26,87 +26,83 @@ interface Message {
 const buffer: any[] = [];
 
 const main = async () => {
-  console.log("connecting ws");
+  try {
+    const client = await createRedisClient(process.env.REDIS_URL!);
 
-  let updatedTickForstream:
-    | {
-        symbol: string;
-        bid: number;
-        ask: number;
-        time: Date;
-      }
-    | {} = {};
-  wss.on("message", async (msg) => {
-    const parsedData: Message = JSON.parse(msg.toString());
-    const { data } = parsedData;
-    const price = parseFloat(data.p);
+    console.log("connecting ws");
 
-    const tick = {
-      time: new Date(data.T),
-      symbol: data.s,
-      price: price,
-    };
+    let updatedTickForstream:
+      | {
+          symbol: string;
+          bid: number;
+          ask: number;
+          time: Date;
+        }
+      | {} = {};
+    wss.on("message", async (msg) => {
+      const parsedData: Message = JSON.parse(msg.toString());
+      const { data } = parsedData;
+      const price = parseFloat(data.p);
 
-    buffer.push(tick);
-
-    const bidPrice = price + (price * 1) / 100;
-    const askPrice = price;
-
-    updatedTickForstream = {
-      symbol: data.s,
-      bid: bidPrice,
-      ask: askPrice,
-      time: new Date(data.T),
-    };
-
-    Promise.all([
-      // queueManager.push(
-      //   "feed",
-      //   JSON.stringify({
-      //     type: "tick",
-      //     time: new Date(data.T),
-      //     symbol: data.s,
-      //     bid: bidPrice,
-      //     ask: askPrice,
-      //   })
-      // ),
-      pubSubManager.publish("live_feed", {
+      const tick = {
         time: new Date(data.T),
+        symbol: data.s,
+        price: price,
+      };
+
+      buffer.push(tick);
+
+      const bidPrice = price + (price * 1) / 100;
+      const askPrice = price;
+
+      updatedTickForstream = {
         symbol: data.s,
         bid: bidPrice,
         ask: askPrice,
-      }),
-      pubSubManager.publish(`live_feed:${data.s}`, {
         time: new Date(data.T),
-        symbol: data.s,
-        bid: bidPrice,
-        ask: askPrice,
-      }),
-    ]);
-  });
+      };
 
-  setInterval(async () => {
-    if (Object.keys(updatedTickForstream).length === 0) return;
-    await queueManager.client.xAdd(CREATE_ORDER_QUEUE, "*", {
-      message: JSON.stringify({ ...updatedTickForstream, kind: "tick" }),
+      Promise.all([
+        pubSubManager.publish("live_feed", {
+          time: new Date(data.T),
+          symbol: data.s,
+          bid: bidPrice,
+          ask: askPrice,
+        }),
+        pubSubManager.publish(`live_feed:${data.s}`, {
+          time: new Date(data.T),
+          symbol: data.s,
+          bid: bidPrice,
+          ask: askPrice,
+        }),
+      ]);
     });
-  }, 100);
 
-  setInterval(async () => {
-    if (buffer.length > 0) {
-      const batch = [...buffer];
-      buffer.length = 0;
+    setInterval(async () => {
+      if (Object.keys(updatedTickForstream).length === 0) return;
+      await client.xAdd(CREATE_ORDER_QUEUE, "*", {
+        message: JSON.stringify({ ...updatedTickForstream, kind: "tick" }),
+      });
+    }, 100);
 
-      try {
-        await prismaClient.ticks.createMany({
-          data: batch,
-          skipDuplicates: true,
-        });
-      } catch (err) {
-        console.error("Dv insert error:", err);
+    setInterval(async () => {
+      if (buffer.length > 0) {
+        const batch = [...buffer];
+        buffer.length = 0;
+
+        try {
+          await prismaClient.ticks.createMany({
+            data: batch,
+            skipDuplicates: true,
+          });
+        } catch (err) {
+          console.error("Dv insert error:", err);
+        }
       }
-    }
-  }, 10000);
+    }, 10000);
+  } catch (error) {
+    console.error("Error:", error);
+  }
 };
 
 main();

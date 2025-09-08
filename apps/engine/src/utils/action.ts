@@ -9,7 +9,6 @@ export const handleCreateOrder = async (
   msg: any,
   USDBalance: number | undefined
 ) => {
-  console.log("create trade USDBalance", USDBalance);
   const { symbol, type, qty, leverage, margin, id } = msg;
 
   try {
