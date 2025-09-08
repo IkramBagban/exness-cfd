@@ -1,5 +1,7 @@
 import { createClient, RedisClientType } from "redis";
 import dotenv from "dotenv";
+dotenv.config();
+
 import { createRedisClient } from "./utils/helper";
 import { storeManager } from "./utils/store";
 import {
@@ -15,9 +17,17 @@ import {
   handleCloseOrder,
   getClosedTrades,
   getAssets,
+  handleSignup,
+  handleSignin,
+  handleVerifyAuth,
+  handleLogout,
+  getUserStats,
 } from "./utils/action";
 
-dotenv.config();
+console.log("environment variables:", {
+  REDIS_URL: process.env.REDIS_URL,
+  JWT_SECRET: process.env.JWT_SECRET,
+});
 
 const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
   const USDBalance = storeManager.getBalance().usd?.qty;
@@ -46,6 +56,21 @@ const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
     case "get-balance":
       await getBalance({ id: msg.id, client });
       break;
+    case "signup":
+      await handleSignup({ id: msg.id, client, email: msg.email });
+      break;
+    case "signin":
+      await handleSignin({ id: msg.id, client, email: msg.email });
+      break;
+    case "verify-auth":
+      await handleVerifyAuth({ id: msg.id, client, token: msg.token });
+      break;
+    case "logout":
+      await handleLogout({ id: msg.id, client, sessionToken: msg.sessionToken });
+      break;
+    case "get-user-stats":
+      await getUserStats({ id: msg.id, client });
+      break;
     case "tick":
       assetPrices[msg.symbol] = { bid: msg.bid, ask: msg.ask };
       checkLiquidation();
@@ -58,7 +83,8 @@ const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
 const main = async () => {
   const client = await createRedisClient();
 
-  let lastId = "0";
+  // let lastId = "0";
+  let lastId = "$"; 
 
   while (true) {
     const messages = await client.xRead(

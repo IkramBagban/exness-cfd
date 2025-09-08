@@ -1,7 +1,9 @@
 import cors from "cors";
-
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
+dotenv.config();
 import prismaClient from "@repo/db";
-import authRoutes from "./routes/auth.route";
+import { createAuthRoutes } from "./routes/auth.route";
 import express, { NextFunction, Request, Response } from "express";
 import { validateRequireEnvs } from "./utils/helper";
 import { createTradeSchema, TradeType } from "@repo/common";
@@ -11,12 +13,23 @@ import { RedisSubscriber } from "./utils/redis-subscriber";
 
 const app = express();
 const CREATE_ORDER_QUEUE = "trade-stream";
+// const requiredEnvsKeys = ["JWT_SECRET", "RESEND_API_KEY", "RESEND_FROM_EMAIL"];
 const requiredEnvsKeys = ["JWT_SECRET"];
 
 validateRequireEnvs(requiredEnvsKeys);
 
+const client = createClient({
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+});
+client.connect();
+
+const redisSubscriber = new RedisSubscriber();
+
 app.use(express.json());
+app.use(cookieParser());
 app.use(cors());
+
+const authRoutes = createAuthRoutes(client, redisSubscriber);
 app.use("/api/v1", authRoutes);
 
 const tableMap: Record<string, string> = {
@@ -27,12 +40,7 @@ const tableMap: Record<string, string> = {
   "1d": "candles_1d",
 };
 
-const client = createClient({
-  url: process.env.REDIS_URL || "redis://localhost:6379",
-});
-const redisSubscriber = new RedisSubscriber();
 client.on("error", (err: any) => console.log("Redis Client Error", err));
-client.connect();
 
 
 app.get("/api/v1/candles", async (req, res, next) => {

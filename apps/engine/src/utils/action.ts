@@ -3,6 +3,8 @@ import { assetPrices, CALLBACK_QUEUE } from "./constants";
 import { createTrade } from "./helper";
 import { storeManager } from "./store";
 import { TradeType, TradeStatus } from "@repo/common/types";
+import { userManager } from "./user-manager";
+import jwt from "jsonwebtoken";
 
 export const handleCreateOrder = async (
   client: RedisClientType,
@@ -324,6 +326,215 @@ export const getAssets = async ({
       id,
       error: "{}",
       data: JSON.stringify(responseData),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};
+
+export const handleSignup = async ({
+  id,
+  client,
+  email,
+}: {
+  id: string;
+  client: any;
+  email: string;
+}) => {
+  try {
+    if (userManager.userExists(email)) {
+      await client.xAdd(CALLBACK_QUEUE, "*", {
+        id,
+        error: JSON.stringify({ statusCode: 409, message: "User already exists with this email" }),
+        data: "{}",
+      });
+      return;
+    }
+
+    console.log("process.env.JWT_SECRET", process.env.JWT_SECRET);
+    const verificationToken = jwt.sign(
+      { email, action: "signup" },
+      process.env.JWT_SECRET! || "mysupersecret",
+      { expiresIn: "1h" }
+    );
+
+    userManager.addPendingVerification(email, "signup", verificationToken);
+
+    const responseData = {
+      message: "Verification token generated successfully",
+      verificationToken,
+    };
+
+
+
+    console.log("Verification token generated:");
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(responseData),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};
+
+export const handleSignin = async ({
+  id,
+  client,
+  email,
+}: {
+  id: string;
+  client: any;
+  email: string;
+}) => {
+  try {
+    if (!userManager.userExists(email)) {
+      await client.xAdd(CALLBACK_QUEUE, "*", {
+        id,
+        error: JSON.stringify({ statusCode: 404, message: "No account found with this email. Please sign up first." }),
+        data: "{}",
+      });
+      return;
+    }
+
+    const user = userManager.getUserByEmail(email);
+    
+    const verificationToken = jwt.sign(
+      { email, userId: user?.id, action: "signin" },
+      process.env.JWT_SECRET! || "mysupersecret",
+      { expiresIn: "1h" }
+    );
+
+    userManager.addPendingVerification(email, "signin", verificationToken);
+
+    const responseData = {
+      message: "Sign-in verification token generated successfully",
+      verificationToken,
+    };
+
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(responseData),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};
+
+export const handleVerifyAuth = async ({
+  id,
+  client,
+  token,
+}: {
+  id: string;
+  client: any;
+  token: string;
+}) => {
+  try {
+    const result = userManager.completeVerification(token);
+    
+    if (!result.success || !result.user) {
+      await client.xAdd(CALLBACK_QUEUE, "*", {
+        id,
+        error: JSON.stringify({ statusCode: 400, message: result.error || "Verification failed" }),
+        data: "{}",
+      });
+      return;
+    }
+
+    const sessionToken = userManager.createSession(result.user.id);
+
+    const responseData = {
+      message: result.user ? "Authentication successful" : "User created and authenticated",
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
+      },
+      sessionToken,
+    };
+
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(responseData),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};
+
+export const handleLogout = async ({
+  id,
+  client,
+  sessionToken,
+}: {
+  id: string;
+  client: any;
+  sessionToken: string;
+}) => {
+  try {
+    const removed = userManager.removeSession(sessionToken);
+
+    const responseData = {
+      message: removed ? "Logged out successfully" : "Session not found",
+    };
+
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(responseData),
+    });
+  } catch (error) {
+    const statusCode = (error as any).statusCode || 500;
+    const errorMessage = (error as any).message || "Internal Server Error";
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: JSON.stringify({ statusCode, message: errorMessage, error }),
+      data: "{}",
+    });
+  }
+};
+
+export const getUserStats = async ({
+  id,
+  client,
+}: {
+  id: string;
+  client: any;
+}) => {
+  try {
+    const stats = userManager.getStats();
+    
+    await client.xAdd(CALLBACK_QUEUE, "*", {
+      id,
+      error: "{}",
+      data: JSON.stringify(stats),
     });
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;

@@ -4,6 +4,7 @@ export const CALLBACK_QUEUE = "callback-queue";
 export class RedisSubscriber {
   private client: RedisClientType;
   private callbacks: Record<string, (data: any) => void>;
+  private lastProcessedId: string = "0";
 
   constructor() {
     this.client = createClient({
@@ -16,28 +17,46 @@ export class RedisSubscriber {
 
   async runLoop() {
     while (1) {
-      const response = await this.client.xRead(
-        {
-          key: CALLBACK_QUEUE,
-          id: "$",
-        },
-        {
-          COUNT: 1,
-          BLOCK: 0,
+      try {
+        const response = await this.client.xRead(
+          {
+            key: CALLBACK_QUEUE,
+            id: this.lastProcessedId,
+          },
+          {
+            COUNT: 10,
+            BLOCK: 1000,
+          }
+        );
+
+        if (!response || response.length === 0) {
+          continue;
         }
-      );
 
-      if (!response) {
-        continue;
+        const { name, messages } = response[0];
+
+        for (const message of messages) {
+          console.log(
+            "received message from the callback queue/engine",
+            JSON.stringify(message)
+          );
+
+          const messageId = message.message.id;
+          const callback = this.callbacks[messageId];
+
+          if (callback && typeof callback === "function") {
+            console.log("Processing callback for message ID:", messageId);
+            callback(message);
+            delete this.callbacks[messageId];
+          } else {
+            console.warn(`No callback found for message ID: ${messageId}`);
+          }
+
+          this.lastProcessedId = message.id;
+        }
+      } catch (error) {
+        console.error("Error in Redis subscriber runLoop:", error);
       }
-
-      const { name, messages } = response[0];
-      console.log(
-        "received message from the callback queue/engine",
-        JSON.stringify(messages[0])
-      );
-      this.callbacks[messages[0].message.id](messages[0]);
-      delete this.callbacks[messages[0].message.id];
     }
   }
 
@@ -48,13 +67,20 @@ export class RedisSubscriber {
   }> {
     return new Promise((resolve, reject) => {
       this.callbacks[callbackId] = resolve;
-      setTimeout(() => {
+
+      const timeoutId = setTimeout(() => {
         if (this.callbacks[callbackId]) {
-          
-          console.log("Timeout waiting for message...");
-          reject("Timeout waiting for message");
+          delete this.callbacks[callbackId];
+          console.log(`Timeout waiting for message with ID: ${callbackId}`);
+          reject(new Error("Timeout waiting for message"));
         }
       }, 5000);
+
+      const originalResolve = this.callbacks[callbackId];
+      this.callbacks[callbackId] = (data: any) => {
+        clearTimeout(timeoutId);
+        originalResolve(data);
+      };
     });
   }
 }
