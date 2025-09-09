@@ -26,6 +26,11 @@ model Ticks {
   symbol String
   price  Float    @db.DoublePrecision
 
-
   @@unique([time, symbol, price])
+}
+
+model Snapshot {
+  id       Int      @id @default(autoincrement())
+  taken_at DateTime @default(now())
+  snap     Json 
 }

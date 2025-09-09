@@ -23,6 +23,7 @@ import {
   handleLogout,
   getUserStats,
 } from "./utils/action";
+import prismaClient from "@repo/db";
 
 console.log("environment variables:", {
   REDIS_URL: process.env.REDIS_URL,
@@ -66,7 +67,11 @@ const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
       await handleVerifyAuth({ id: msg.id, client, token: msg.token });
       break;
     case "logout":
-      await handleLogout({ id: msg.id, client, sessionToken: msg.sessionToken });
+      await handleLogout({
+        id: msg.id,
+        client,
+        sessionToken: msg.sessionToken,
+      });
       break;
     case "get-user-stats":
       await getUserStats({ id: msg.id, client });
@@ -83,13 +88,33 @@ const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
 const main = async () => {
   const client = await createRedisClient();
 
+  setInterval(async () => {
+    try {
+      console.log("Taking snapshot at", new Date());
+      const snapshot = {
+        balance: { ...storeManager.getBalance() },
+        openOrders: [...(storeManager.getOpenTrades() || [])],
+        closedOrders: [...(storeManager.getClosedTrades() || [])],
+        assetPrices: { ...assetPrices },
+      };
+
+      await prismaClient.snapshot.create({
+        data: {
+          snap: snapshot as any,
+        },
+      });
+    } catch (err) {
+      console.error("Snapshot failed:", err);
+    }
+  }, 15_000);
+
   // let lastId = "0";
-  let lastId = "$"; 
+  let lastId = "$";
 
   while (true) {
     const messages = await client.xRead(
       { key: CREATE_ORDER_QUEUE, id: lastId },
-      { COUNT: 50, BLOCK: 0 } 
+      { COUNT: 50, BLOCK: 0 }
     );
 
     if (!messages) continue;

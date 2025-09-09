@@ -1,3 +1,6 @@
+-- docker exec -i 39e37141a1de psql -U postgres -d postgres < prisma/timescale.sqlc
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
 SELECT create_hypertable('"Ticks"', 'time', if_not_exists => TRUE);
 
 -- 1 Minute
