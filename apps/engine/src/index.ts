@@ -88,6 +88,25 @@ const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
 const main = async () => {
   const client = await createRedisClient();
 
+  setInterval(
+    async () => {
+      // keep only latest 10 snapshots
+      await prismaClient.snapshot.deleteMany({
+        where: {
+          id: {
+            notIn: (
+              await prismaClient.snapshot.findMany({
+                orderBy: { taken_at: "desc" },
+                take: 10,
+                select: { id: true },
+              })
+            ).map((s) => s.id),
+          },
+        },
+      });
+    },
+    60 * 5 * 1000
+  );
   setInterval(async () => {
     try {
       console.log("Taking snapshot at", new Date());
