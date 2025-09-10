@@ -21,6 +21,7 @@ const App = () => {
   const [isTakingLeverage, setIsTakingLeverage] = useState(false);
   const [leverage, setLeverage] = useState(5);
   const [margin, setMargin] = useState(100);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const chartElementRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
 
@@ -73,12 +74,12 @@ const App = () => {
   useEffect(() => {
     loadBalance();
     // loadOrders();
-    const interval = setInterval(() => {
-      loadBalance();
+    // const interval = setInterval(() => {
+      // loadBalance();
       // loadOrders();
-    }, 5000);
+    // }, 5000);
 
-    return () => clearInterval(interval);
+    // return () => clearInterval(interval);
   }, []);
 
   const loadBalance = async () => {
@@ -106,11 +107,18 @@ const App = () => {
 
       if (response.ok) {
         loadBalance();
-        // loadOrders();
+        // Trigger refresh of orders
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error submitting order:', error);
     }
+  };
+
+  // Function to trigger orders refresh from child component
+  const handleOrderUpdate = () => {
+    setRefreshTrigger(prev => prev + 1);
+    loadBalance(); // Also refresh balance when orders change
   };
 
   const getDisplayPrice = (symbol, type) => {
@@ -149,7 +157,7 @@ const App = () => {
             window={timeWindow} chartRef={chartRef}
             tick={{ price: prices[selectedSymbol!]?.ask, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }}
             selectedSymbol={selectedSymbol} />
-          <Orders prices={prices} />
+          <Orders prices={prices} onOrderUpdate={handleOrderUpdate} refreshTrigger={refreshTrigger} />
         </div>
 
 
