@@ -25,6 +25,13 @@ import {
 } from "./utils/action";
 import prismaClient from "@repo/db";
 
+interface snap {
+  balance: any;
+  openOrders: any[];
+  closedOrders: any[];
+  assetPrices: any;
+}
+
 console.log("environment variables:", {
   REDIS_URL: process.env.REDIS_URL,
   JWT_SECRET: process.env.JWT_SECRET,
@@ -85,7 +92,26 @@ const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
   }
 };
 
+const recoverLastSnapshotState = async () => {
+  const lastSnapshot = await prismaClient.snapshot.findFirst({
+    orderBy: { taken_at: "desc" },
+  });
+
+  console.log('lastSnapshot',lastSnapshot)
+
+  const snap = lastSnapshot?.snap as unknown as snap;
+
+  if (!snap) return console.log("there is no snap stored");
+  storeManager.setBalance(snap.balance);
+  storeManager.setTrades(snap.openOrders);
+
+  console.log("trades", storeManager.getOpenTrades());
+  console.log("balance", storeManager.getBalance());
+};
+
+
 const main = async () => {
+  await recoverLastSnapshotState();
   const client = await createRedisClient();
 
   setInterval(

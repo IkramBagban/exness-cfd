@@ -72,6 +72,16 @@ export class StoreManager {
     return this.orders.find((o) => o.orderId === orderId);
   }
 
+  setTrades = (trades: Order[]) => {
+    this.orders = trades;
+  };
+
+  setBalance = (balance: {
+    [key: string]: { qty: number; type?: TradeType };
+  }) => {
+    this.balance = balance;
+  };
+
   public getOpenTrades(): Order[] | undefined {
     return this.orders.filter((o) => o.status === TradeStatus.OPEN);
   }
