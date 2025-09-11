@@ -45,7 +45,7 @@ export class RedisSubscriber {
           const callback = this.callbacks[messageId];
 
           if (callback && typeof callback === "function") {
-            console.log("Processing callback for message ID:", messageId);
+            // console.log("Processing callback for message ID:", messageId);
             callback(message);
             delete this.callbacks[messageId];
           } else {

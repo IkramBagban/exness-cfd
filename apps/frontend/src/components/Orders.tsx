@@ -59,7 +59,7 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
 
             const positionsData = positions.map(order => ({
                 ...order,
-                currentPrice: prices[order.symbol]?.bid || order.openPrice,
+                currentPrice: order.type === 'buy' ? prices[order.symbol]?.ask : prices[order.symbol]?.bid,
                 pnl: tradeType === 'open' ? calculatePnL(order, prices[order.symbol]) : order.pnl
             }));
             console.log("Rendering position:", positionsData);

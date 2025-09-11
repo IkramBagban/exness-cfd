@@ -39,7 +39,10 @@ console.log("environment variables:", {
 
 const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
   const USDBalance = storeManager.getBalance().usd?.qty;
-  console.log("\n\n============= Received message:\n", msg);
+
+  if (msg.kind !== "tick") {
+    console.log("\n\n============= Received message:\n", msg);
+  }
 
   switch (msg.kind) {
     case "create-order":
@@ -97,7 +100,7 @@ const recoverLastSnapshotState = async () => {
     orderBy: { taken_at: "desc" },
   });
 
-  console.log('lastSnapshot',lastSnapshot)
+  console.log("lastSnapshot", lastSnapshot);
 
   const snap = lastSnapshot?.snap as unknown as snap;
 
@@ -108,7 +111,6 @@ const recoverLastSnapshotState = async () => {
   console.log("trades", storeManager.getOpenTrades());
   console.log("balance", storeManager.getBalance());
 };
-
 
 const main = async () => {
   await recoverLastSnapshotState();
