@@ -44,9 +44,9 @@ client.on("error", (err: any) => console.log("Redis Client Error", err));
 
 
 app.get("/api/v1/candles", async (req, res, next) => {
-  const { symbol = "BTCUSDT", interval = "1h", limit = "100" } = req.query;
+  const { symbol = "BTCUSDT", interval = "1h", limit = "100", startTime, endTime } = req.query;
   const tableName = tableMap[interval as string];
-  console.log({ symbol, interval, limit });
+  console.log({ symbol, interval, limit, startTime, endTime });
 
   if (!tableName) {
     return res.status(400).json({ error: "Unsupported interval" });
@@ -54,6 +54,15 @@ app.get("/api/v1/candles", async (req, res, next) => {
 
   if (!symbol) {
     return res.status(400).json({ error: "Missing required query parameters" });
+  }
+
+  let whereClause = `symbol = '${symbol}'`;
+  if (startTime) {
+    // startTime is expected as unix seconds - fetch candles BEFORE this time for historical data
+    whereClause += ` AND bucket < to_timestamp(${Number(startTime)})`;
+  }
+  if (endTime) {
+    whereClause += ` AND bucket >= to_timestamp(${Number(endTime)})`;
   }
 
   try {
@@ -64,9 +73,9 @@ app.get("/api/v1/candles", async (req, res, next) => {
              low,
              close
       FROM ${tableName}
-      WHERE symbol = '${symbol}'
+      WHERE ${whereClause}
       ORDER BY bucket DESC
-      LIMIT ${Number(limit)}; 
+      LIMIT ${Number(limit)};
     `);
 
     res.status(200).json({

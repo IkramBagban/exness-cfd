@@ -1,13 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { CandlestickData, CandlestickSeries, createChart, IChartApi, ISeriesApi, Time, WhitespaceData } from 'lightweight-charts';
+import { CandlestickData, CandlestickSeries, createChart, IChartApi, ISeriesApi, Time, WhitespaceData, ColorType } from 'lightweight-charts';
 import axios from 'axios'
 
-const fetchCandles = async (symbol, interval, limit) => {
+const fetchCandles = async (symbol, interval, limit, startTime: string | number | null = null) => {
     try {
-        const response = await axios.get(`http://localhost:3000/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+        let url = `http://localhost:3000/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+        if (startTime) {
+            url += `&startTime=${startTime}`;
+        }
+        const response = await axios.get(url);
         return response.data;
     } catch (error) {
         console.error("Error fetching candles:", error);
+        return { candles: [] };
     }
 }
 
@@ -20,9 +25,10 @@ interface Props {
 }
 
 const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef }: Props) => {
-    // const [candles, setCandles] = React.useState<any[]>([]);
     const candlestickSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const lastCandleRef = useRef<any>(null); // keep track of the last candle
+    const [candles, setCandles] = useState<any[]>([]); // store loaded candles
+    const isFetchingRef = useRef(false);
 
     useEffect(() => {
         (async () => {
@@ -30,7 +36,13 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef 
                 console.log("Setting up chart for ", { selectedSymbol, window })
 
                 const chartOptions = {
-                    layout: { textColor: 'black', background: { type: 'solid', color: 'white' } }
+                    layout: { 
+                        textColor: 'black', 
+                        background: { 
+                            type: ColorType.Solid as const, 
+                            color: 'white' 
+                        } 
+                    }
                 };
 
                 chartRef.current = createChart(chartElementRef.current, chartOptions);
@@ -43,22 +55,49 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef 
                 });
                 candlestickSeriesRef.current = candlestickSeries;
 
-
                 chartRef.current.timeScale().fitContent();
 
-                const { candles: _candles } = await fetchCandles(selectedSymbol, window, 10);
+                const response = await fetchCandles(selectedSymbol, window,10);
+                console.log("Fetch response:", response);
+                const _candles = response?.candles;
+                console.log("Initial candles loaded:", _candles?.length, _candles);
+                
                 if (_candles && _candles.length > 0) {
                     candlestickSeries.setData(_candles);
+                    setCandles(_candles);
                     lastCandleRef.current = _candles[_candles.length - 1];
-                    chartRef.current.timeScale().setVisibleLogicalRange({ from: _candles.length - 50, to: _candles.length }); // new candles ke first 50 candles show honge view pe
-
+                    chartRef.current.timeScale().setVisibleLogicalRange({ from: Math.max(0, _candles.length - 10), to: _candles.length });
+                } else {
+                    console.log("No candles data received or empty array");
                 }
-                if (chartRef.current)
-                    chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(range => {
-                        if (range!.from < 10) {
-                            console.log("Visible range is less than 10");
+
+                // Historical fetch on scroll
+                chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(async range => {
+                    console.log("Visible range changed:", range);
+                    if (range && range.from < 5 && !isFetchingRef.current) {
+                        const currentCandles = candlestickSeries.data();
+                        if (currentCandles.length > 0) {
+                            isFetchingRef.current = true;
+                            const earliest = currentCandles[0]?.time;
+                            const earliestTime = typeof earliest === 'number' ? earliest : (typeof earliest === 'string' ? parseInt(earliest) : null);
+                            console.log("🔄 Fetching historical candles before:", earliestTime, new Date(earliestTime * 1000));
+                            
+                            const response = await fetchCandles(selectedSymbol, window, 50, earliestTime);
+                            const moreCandles = response?.candles;
+                            if (moreCandles && moreCandles.length > 0) {
+                                console.log("✅ Historical candles loaded:", moreCandles.length, "candles");
+                                // prepend and update chart
+                                const newCandles = [...moreCandles, ...currentCandles];
+                                setCandles(newCandles);
+                                candlestickSeries.setData(newCandles);
+                                console.log("📊 Updated chart with total candles:", newCandles.length);
+                            } else {
+                                console.log("❌ No historical candles received");
+                            }
+                            isFetchingRef.current = false;
                         }
-                    });
+                    }
+                });
             } catch (error) {
                 console.error("Error in chart setup", error);
             }
@@ -73,11 +112,20 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef 
     useEffect(() => {
         if (!tick || !candlestickSeriesRef.current) return;
 
+        console.log("Processing tick:", tick, "Last candle:", lastCandleRef.current);
+
         try {
             const price = tick.price;
             const time = Math.floor(tick.time / 1000); // Lw chart expect seconds
 
             let lastCandle = lastCandleRef.current;
+            
+            // Don't process ticks if we don't have historical data loaded yet
+            if (!lastCandle) {
+                console.log("No last candle found, skipping tick update");
+                return;
+            }
+            
             let shouldAddNewCandle = false;
             switch (window) {
                 case "1m":
@@ -89,32 +137,41 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef 
                 case "1h":
                     shouldAddNewCandle = time - (lastCandle?.time || 0) >= 3600;
                     break;
+                case "1d":
+                    shouldAddNewCandle = time - (lastCandle?.time || 0) >= 86400;
+                    break;
             }
 
-            if (!lastCandle || time > lastCandle.time && shouldAddNewCandle) {
+            console.log("Should add new candle:", shouldAddNewCandle, "Time diff:", time - (lastCandle?.time || 0));
+
+            if (time > lastCandle.time && shouldAddNewCandle) {
                 const newCandle: CandlestickData<Time> | WhitespaceData<Time> = {
-                    time: time as Time, // if i am doing `new Date(time).toUTCString()` then after this the live candle is getting stop 
+                    time: time as Time,
                     open: price,
                     high: price,
                     low: price,
                     close: price,
                 };
+                console.log("Adding new candle:", newCandle);
                 candlestickSeriesRef.current.update(newCandle);
                 lastCandleRef.current = newCandle;
-            } else {
+            } else if (time >= lastCandle.time) {
                 const updatedCandle = {
                     ...lastCandle,
                     close: price,
                     high: Math.max(lastCandle.high, price),
                     low: Math.min(lastCandle.low, price),
                 };
+                console.log("Updating existing candle:", updatedCandle);
                 candlestickSeriesRef.current.update(updatedCandle);
                 lastCandleRef.current = updatedCandle;
+            } else {
+                console.log("Tick time is older than last candle, ignoring");
             }
         } catch (error) {
-            console.error("error: ", error)
+            console.error("error in tick processing: ", error)
         }
-    }, [tick]);
+    }, [tick, window]);
 
     return (
         <div className="flex-1 relative">
