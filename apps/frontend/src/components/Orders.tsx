@@ -11,13 +11,16 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
     const loadOrders = async (tradeType: "open" | "closed") => {
         try {
             const url = `http://localhost:3000/api/v1/trades/${tradeType}`;
-            console.log("URl called to load orders:", url);
+            console.log("URL called to load orders:", url);
             const response = await axios.get(url);
             const data = response.data;
-            setOrders(Array.isArray(data) ? data : []);
+            console.log(`${tradeType} orders response:`, data);
+            
+            const ordersArray = Array.isArray(data) ? data : [];
+            setOrders(ordersArray);
 
             // Convert orders to positions format
-            const positionsData = data.map(order => ({
+            const positionsData = ordersArray.map(order => ({
                 ...order,
                 currentPrice: prices[order.symbol]?.bid || order.openPrice,
                 pnl: tradeType === 'open' ? calculatePnL(order, prices[order.symbol]) : order.pnl
@@ -31,6 +34,9 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
 
         } catch (error) {
             console.error('Error loading orders:', error);
+            // Clear positions on error to avoid showing stale data
+            setOrders([]);
+            setPositions([]);
         }
     };
 
@@ -59,7 +65,7 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
 
             const positionsData = positions.map(order => ({
                 ...order,
-                currentPrice: order.type === 'buy' ? prices[order.symbol]?.ask : prices[order.symbol]?.bid,
+                currentPrice: prices[order.symbol]?.bid || order.openPrice,
                 pnl: tradeType === 'open' ? calculatePnL(order, prices[order.symbol]) : order.pnl
             }));
             console.log("Rendering position:", positionsData);
@@ -80,6 +86,12 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
         }
     }, [refreshTrigger, tradeType]);
 
+    // Clear positions when switching tabs to avoid showing stale data
+    useEffect(() => {
+        setPositions([]);
+        setOrders([]);
+    }, [tradeType]);
+
     return (
         <div className="flex-1 flex flex-col">
             <div className="flex border-b border-gray-700">
@@ -93,7 +105,9 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
 
             <div className="flex-1 overflow-auto">
                 {positions.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">No open positions</div>
+                    <div className="p-4 text-center text-gray-500">
+                        No {tradeType} positions
+                    </div>
                 ) : (
                     <div className="space-y-1 p-2">
                         {positions.map((position, index) => {

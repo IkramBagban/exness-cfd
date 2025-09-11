@@ -257,7 +257,9 @@ app.get("/api/v1/trades/closed", async (req, res, next) => {
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
     const dataResponse = JSON.parse(responseFromEngine.message.data);
-    if (Object.keys(dataResponse).length > 0) {
+    
+    // Check if we have valid data (array or object with data)
+    if (Array.isArray(dataResponse) || Object.keys(dataResponse).length > 0) {
       res.status(200).json(dataResponse);
     } else {
       res.status(errorResponse.statusCode || 500).json({
