@@ -1,0 +1,43 @@
+# Stage 1: Builder
+FROM node:22-alpine AS builder
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+RUN corepack enable pnpm
+
+COPY . .
+
+RUN pnpm install --frozen-lockfile && \
+    cd packages/db && npx prisma generate && \
+    cd ../services && pnpm build && \
+    cd ../../apps/price-poller && pnpm build
+
+# Stage 2: Runner
+FROM node:22-alpine AS runner
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN corepack enable pnpm && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 pricepoller
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/price-poller/package.json ./apps/price-poller/
+COPY packages/services/package.json ./packages/services/
+COPY packages/db/package.json ./packages/db/
+
+RUN pnpm install --prod --frozen-lockfile
+
+COPY --from=builder --chown=pricepoller:nodejs /app/apps/price-poller/dist ./apps/price-poller/dist
+COPY --from=builder --chown=pricepoller:nodejs /app/packages/services/dist ./packages/services/dist
+COPY --from=builder --chown=pricepoller:nodejs /app/packages/db ./packages/db
+
+RUN cd packages/db && npx prisma generate
+
+USER pricepoller
+
+WORKDIR /app/apps/price-poller
+
+CMD ["node", "dist/index.js"]

@@ -1,0 +1,45 @@
+# Stage 1: Builder
+FROM node:22-alpine AS builder
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+RUN corepack enable pnpm
+
+COPY . .
+
+RUN pnpm install --frozen-lockfile && \
+    cd packages/db && npx prisma generate && \
+    cd ../common && pnpm build && \
+    cd ../../apps/engine && pnpm build
+
+# Stage 2: Runner
+FROM node:22-alpine AS runner
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN corepack enable pnpm && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 engine
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/engine/package.json ./apps/engine/
+COPY packages/common/package.json ./packages/common/
+COPY packages/db/package.json ./packages/db/
+
+RUN pnpm install --prod --frozen-lockfile
+
+COPY --from=builder --chown=engine:nodejs /app/apps/engine/dist ./apps/engine/dist
+COPY --from=builder --chown=engine:nodejs /app/packages/common/dist ./packages/common/dist
+COPY --from=builder --chown=engine:nodejs /app/packages/db ./packages/db
+
+RUN cd packages/db && npx prisma generate
+
+USER engine
+
+WORKDIR /app/apps/engine
+
+EXPOSE 3001
+
+CMD ["node", "dist/index.js"]
