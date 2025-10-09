@@ -28,7 +28,7 @@ const App = () => {
   useEffect(() => {
     const connectWS = () => {
       try {
-        ws.current = new WebSocket('ws://localhost:8080');
+        ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8080');
 
         ws.current.onopen = () => {
           setWsConnected(true);
@@ -84,7 +84,7 @@ const App = () => {
 
   const loadBalance = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/v1/balance');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/balance`);
       // console.log("balancer response", response)
       const data = await response.json();
       setBalance(data);
@@ -95,7 +95,7 @@ const App = () => {
 
   const submitOrder = async () => {
     try {
-      const response = await fetch('http://localhost:3000/api/v1/trade/open', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/trade/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,7 +4,8 @@ import axios from 'axios'
 
 const fetchCandles = async (symbol, interval, limit, startTime: string | number | null = null) => {
     try {
-        let url = `http://localhost:3000/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        let url = `${API_URL}/api/v1/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`;
         if (startTime) {
             url += `&startTime=${startTime}`;
         }

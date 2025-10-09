@@ -10,7 +10,8 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
 
     const loadOrders = async (tradeType: "open" | "closed") => {
         try {
-            const url = `http://localhost:3000/api/v1/trades/${tradeType}`;
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const url = `${API_URL}/api/v1/trades/${tradeType}`;
             console.log("URL called to load orders:", url);
             const response = await axios.get(url);
             const data = response.data;
@@ -43,7 +44,8 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
     // console.log("Rendering Orders component", { prices, positions, tradeType });
     const closeOrder = async (orderId: string) => {
         try {
-            const response = await axios.post(`http://localhost:3000/api/v1/trade/close/${orderId}`);
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+            const response = await axios.post(`${API_URL}/api/v1/trade/close/${orderId}`);
 
             if (response.status === 200) {
                 // Reload orders to reflect the change
