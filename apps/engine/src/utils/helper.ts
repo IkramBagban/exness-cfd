@@ -146,9 +146,7 @@ export const createTrade = (
 
 export const createRedisClient = async (): Promise<any> => {
   const client = createClient({
-    url:
-      process.env.REDIS_URL ||
-      "redis://default:WA9nGxg5rO2UR3GYCb8uwxx96zfrxV6w@redis-14029.c241.us-east-1-4.ec2.redns.redis-cloud.com:14029",
+    url: process.env.REDIS_URL || "redis://localhost:6379",
   });
 
   client.on("error", (err) => console.error("Redis Client Error", err));

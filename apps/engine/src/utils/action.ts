@@ -76,6 +76,7 @@ export const handleCloseOrder = async ({
 }) => {
   const trade = storeManager.getTradeById(orderId);
 
+  console.log("trade", trade)
   if (!trade) {
     await client.xAdd(CALLBACK_QUEUE, "*", {
       id,
@@ -90,6 +91,7 @@ export const handleCloseOrder = async ({
       ? assetPrices[trade.symbol].ask
       : assetPrices[trade.symbol].bid;
 
+      console.log("market price", marketPrice)
   if (!marketPrice) {
     await client.xAdd(CALLBACK_QUEUE, "*", {
       id,
@@ -128,8 +130,15 @@ export const handleCloseOrder = async ({
       return;
     }
 
+    /// buy at 100;
+    // 10 qty 
+    // market price = 110
+    // proceed = 110 * 10 = 1100 
+    // new balance = 
+
     const proceeds = trade.qty * marketPrice;
     newUsdBalance = balance.usd.qty + proceeds;
+    
 
     const pnl =
       (trade.type === TradeType.BUY

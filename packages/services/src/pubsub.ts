@@ -6,7 +6,7 @@ export class PubSubManager {
 
   constructor(url: string) {
     this.publisher = createClient({
-      url: "redis://default:WA9nGxg5rO2UR3GYCb8uwxx96zfrxV6w@redis-14029.c241.us-east-1-4.ec2.redns.redis-cloud.com:14029",
+      url: url,
     });
     this.subscriber = createClient({
       url: url,
@@ -23,9 +23,8 @@ export class PubSubManager {
 
   static getInstance() {
     if (!this.instance) {
-      this.instance = new PubSubManager(
-        "redis://default:WA9nGxg5rO2UR3GYCb8uwxx96zfrxV6w@redis-14029.c241.us-east-1-4.ec2.redns.redis-cloud.com:14029"
-      );
+      const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+      this.instance = new PubSubManager(redisUrl);
     }
     return this.instance;
   }

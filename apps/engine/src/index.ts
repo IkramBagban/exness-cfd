@@ -113,6 +113,8 @@ const recoverLastSnapshotState = async () => {
 };
 
 const main = async () => {
+  try {
+    console.log("Engine starting...");
   await recoverLastSnapshotState();
   const client = await createRedisClient();
 
@@ -144,7 +146,6 @@ const main = async () => {
         closedOrders: [...(storeManager.getClosedTrades() || [])],
         assetPrices: { ...assetPrices },
       };
-
       await prismaClient.snapshot.create({
         data: {
           snap: snapshot as any,
@@ -157,15 +158,12 @@ const main = async () => {
 
   // let lastId = "0";
   let lastId = "$";
-
   while (true) {
     const messages = await client.xRead(
       { key: CREATE_ORDER_QUEUE, id: lastId },
       { COUNT: 50, BLOCK: 0 }
     );
-
     if (!messages) continue;
-
     for (const { messages: msgs } of messages) {
       for (const { id, message: values } of msgs) {
         try {
@@ -177,6 +175,9 @@ const main = async () => {
         lastId = id;
       }
     }
+    }
+  } catch (error) {
+    console.error("Error in main function:", error);
   }
 };
 
