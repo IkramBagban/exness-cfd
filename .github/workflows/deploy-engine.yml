@@ -43,6 +43,7 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             docker pull ikrambagban/exness-engine:${{ github.sha }}
+            docker network inspect exness-network || docker network create exness-network
             docker stop exness-engine || true
             docker rm exness-engine || true
             docker run -d \

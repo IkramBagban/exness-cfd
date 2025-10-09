@@ -1,17 +1,17 @@
 name: PricePoller-Deployment
 
 on:
-  push: 
-    branches: 
+  push:
+    branches:
       - main
-    paths: 
-      - 'apps/price-poller/**'
-      - 'packages/services/**'
-      - 'packages/db/**'
-      - '.github/workflows/deploy-price-poller.yml'
-      - 'docker/Dockerfile.price-poller'
+    paths:
+      - "apps/price-poller/**"
+      - "packages/services/**"
+      - "packages/db/**"
+      - ".github/workflows/deploy-price-poller.yml"
+      - "docker/Dockerfile.price-poller"
 
-jobs: 
+jobs:
   deploy:
     runs-on: ubuntu-latest
 
@@ -43,6 +43,7 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             docker pull ikrambagban/exness-price-poller:${{ github.sha }}
+            docker network inspect exness-network || docker network create exness-network
             docker stop exness-price-poller || true
             docker rm exness-price-poller || true
             docker run -d \
