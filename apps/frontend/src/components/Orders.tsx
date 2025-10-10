@@ -70,7 +70,6 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
                 currentPrice: prices[order.symbol]?.bid || order.openPrice,
                 pnl: tradeType === 'open' ? calculatePnL(order, prices[order.symbol]) : order.pnl
             }));
-            console.log("Rendering position:", positionsData);
 
             setPositions(positionsData);
         }, 100);

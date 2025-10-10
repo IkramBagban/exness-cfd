@@ -25,10 +25,10 @@ const App = () => {
   const chartElementRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
 
-  console.log({API_URL: import.meta.env.VITE_API_URL, WS_URL: import.meta.env.VITE_WS_URL});
   useEffect(() => {
     const connectWS = () => {
       try {
+        console.log('Connecting to WebSocket...', import.meta.env.VITE_WS_URL);
         ws.current = new WebSocket(import.meta.env.VITE_WS_URL || 'ws://localhost:8080');
 
         ws.current.onopen = () => {
@@ -76,8 +76,8 @@ const App = () => {
     loadBalance();
     // loadOrders();
     // const interval = setInterval(() => {
-      // loadBalance();
-      // loadOrders();
+    // loadBalance();
+    // loadOrders();
     // }, 5000);
 
     // return () => clearInterval(interval);
