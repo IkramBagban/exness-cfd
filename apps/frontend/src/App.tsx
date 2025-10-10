@@ -25,6 +25,7 @@ const App = () => {
   const chartElementRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
 
+  console.log({API_URL: import.meta.env.VITE_API_URL, WS_URL: import.meta.env.VITE_WS_URL});
   useEffect(() => {
     const connectWS = () => {
       try {
