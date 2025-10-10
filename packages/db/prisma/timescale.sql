@@ -1,4 +1,5 @@
--- docker exec -i 39e37141a1de psql -U postgres -d postgres < prisma/timescale.sqlc
+-- command prompt: docker exec -i 39e37141a1de psql -U postgres -d postgres < prisma/timescale.sql
+-- powershell: Get-Content prisma/timescale.sql | docker exec -i 39e37141a1de psql -U postgres -d postgres
 CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 SELECT create_hypertable('"Ticks"', 'time', if_not_exists => TRUE);
