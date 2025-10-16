@@ -94,13 +94,18 @@ const App = () => {
     }
   };
 
-  const submitOrder = async () => {
+  const submitOrder = async (type?: string) => {
     try {
+      const _confirm = confirm("Do you want to execute order?");
+      if (!_confirm) return;
+
+      const tradeType = type || orderType;
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/trade/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: orderType,
+          type: tradeType,
           symbol: selectedSymbol,
           qty: parseFloat(volume)
         })
@@ -158,7 +163,9 @@ const App = () => {
             window={timeWindow} chartRef={chartRef}
             tick={{ price: prices[selectedSymbol!]?.ask, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }}
             selectedSymbol={selectedSymbol} />
-          <Orders prices={prices} onOrderUpdate={handleOrderUpdate} refreshTrigger={refreshTrigger} />
+          <div className="h-64 overflow-auto">
+            <Orders prices={prices} onOrderUpdate={handleOrderUpdate} refreshTrigger={refreshTrigger} />
+          </div>
         </div>
 
 
@@ -300,13 +307,19 @@ const App = () => {
 
               <div className="grid grid-cols-2 gap-2 mt-6">
                 <button
-                  onClick={() => { setOrderType('sell'); submitOrder(); }}
+                  onClick={() => { 
+                    setOrderType('sell'); 
+                    submitOrder('sell');  // Pass type directly
+                  }}
                   className="bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded font-medium transition-colors"
                 >
                   Sell {currentAsk?.toFixed(3)}
                 </button>
                 <button
-                  onClick={() => { setOrderType('buy'); submitOrder(); }}
+                  onClick={() => { 
+                    setOrderType('buy'); 
+                    submitOrder('buy');  // Pass type directly
+                  }}
                   className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded font-medium transition-colors"
                 >
                   Buy {currentBid?.toFixed(3)}

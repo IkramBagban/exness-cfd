@@ -110,10 +110,10 @@ const Orders = ({ prices, onOrderUpdate, refreshTrigger }) => {
                         No {tradeType} positions
                     </div>
                 ) : (
-                    <div className="space-y-1 p-2">
-                        {positions.map((position, index) => {
+                    <div className="space-y-2 p-2">
+                        {positions.map((position) => {
                             return (
-                                <div key={index} className="bg-gray-700/50 rounded p-3 text-sm">
+                                <div key={position.orderId} className="bg-gray-700 rounded p-3 text-sm border border-gray-600">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center space-x-2">
                                             <div className={`w-2 h-2 rounded-full ${position.type === 'buy' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
