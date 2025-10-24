@@ -124,6 +124,12 @@ app.post("/api/v1/trade/open", async (req, res, next) => {
         margin,
         leverage,
       }),
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
 
     try {
@@ -165,6 +171,12 @@ app.get("/api/v1/trades/open", async (req, res, next) => {
         id: id,
         kind: "get-open-trades",
       }),
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
@@ -194,7 +206,13 @@ app.get("/api/v1/balance", async (req, res, next) => {
           kind: "get-balance",
         }),
       },
-      {}
+      {
+        TRIM: {
+          strategy: "MAXLEN",
+          threshold: 500,
+          strategyModifier: "~"
+        }
+      }
     );
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
@@ -222,6 +240,12 @@ app.post("/api/v1/trade/close/:orderId", async (req, res, next) => {
         kind: "close-trade",
         orderId,
       }),
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
 
     const responseFromEngine = await redisSubscriber.waitForMessage(id);
@@ -253,6 +277,12 @@ app.get("/api/v1/trades/closed", async (req, res, next) => {
         id: id,
         kind: "get-closed-trades",
       }),
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
@@ -280,6 +310,12 @@ app.get("/api/v1/assets", async (req, res, next) => {
         id: id,
         kind: "get-assets",
       }),
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);

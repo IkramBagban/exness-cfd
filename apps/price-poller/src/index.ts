@@ -82,6 +82,12 @@ const main = async () => {
       if (Object.keys(updatedTickForstream).length === 0) return;
       await client.xAdd(CREATE_ORDER_QUEUE, "*", {
         message: JSON.stringify({ ...updatedTickForstream, kind: "tick" }),
+      }, {
+        TRIM: {
+          strategy: "MAXLEN",
+          threshold: 1000,
+          strategyModifier: "~"
+        }
       });
     }, 100);
 

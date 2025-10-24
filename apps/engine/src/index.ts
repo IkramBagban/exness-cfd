@@ -32,10 +32,6 @@ interface snap {
   assetPrices: any;
 }
 
-console.log("environment variables:", {
-  REDIS_URL: process.env.REDIS_URL,
-  JWT_SECRET: process.env.JWT_SECRET,
-});
 
 const handleMessage = async (client: RedisClientType, msg: any, id: string) => {
   const USDBalance = storeManager.getBalance().usd?.qty;
@@ -115,46 +111,46 @@ const recoverLastSnapshotState = async () => {
 const main = async () => {
   try {
     console.log("Engine starting...");
-  await recoverLastSnapshotState();
+  // await recoverLastSnapshotState();
   const client = await createRedisClient();
 
-  setInterval(
-    async () => {
-      // keep only latest 10 snapshots
-      await prismaClient.snapshot.deleteMany({
-        where: {
-          id: {
-            notIn: (
-              await prismaClient.snapshot.findMany({
-                orderBy: { taken_at: "desc" },
-                take: 10,
-                select: { id: true },
-              })
-            ).map((s) => s.id),
-          },
-        },
-      });
-    },
-    60 * 5 * 1000
-  );
-  setInterval(async () => {
-    try {
-      console.log("Taking snapshot at", new Date());
-      const snapshot = {
-        balance: { ...storeManager.getBalance() },
-        openOrders: [...(storeManager.getOpenTrades() || [])],
-        closedOrders: [...(storeManager.getClosedTrades() || [])],
-        assetPrices: { ...assetPrices },
-      };
-      await prismaClient.snapshot.create({
-        data: {
-          snap: snapshot as any,
-        },
-      });
-    } catch (err) {
-      console.error("Snapshot failed:", err);
-    }
-  }, 15_000);
+  // setInterval(
+  //   async () => {
+  //     // keep only latest 10 snapshots
+  //     await prismaClient.snapshot.deleteMany({
+  //       where: {
+  //         id: {
+  //           notIn: (
+  //             await prismaClient.snapshot.findMany({
+  //               orderBy: { taken_at: "desc" },
+  //               take: 10,
+  //               select: { id: true },
+  //             })
+  //           ).map((s) => s.id),
+  //         },
+  //       },
+  //     });
+  //   },
+  //   60 * 5 * 1000
+  // );
+  // setInterval(async () => {
+  //   try {
+  //     console.log("Taking snapshot at", new Date());
+  //     const snapshot = {
+  //       balance: { ...storeManager.getBalance() },
+  //       openOrders: [...(storeManager.getOpenTrades() || [])],
+  //       closedOrders: [...(storeManager.getClosedTrades() || [])],
+  //       assetPrices: { ...assetPrices },
+  //     };
+  //     await prismaClient.snapshot.create({
+  //       data: {
+  //         snap: snapshot as any,
+  //       },
+  //     });
+  //   } catch (err) {
+  //     console.error("Snapshot failed:", err);
+  //   }
+  // }, 15_000);
 
   // let lastId = "0";
   let lastId = "$";

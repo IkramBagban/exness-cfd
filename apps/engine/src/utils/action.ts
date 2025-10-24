@@ -6,6 +6,17 @@ import { TradeType, TradeStatus } from "@repo/common/types";
 import { userManager } from "./user-manager";
 import jwt from "jsonwebtoken";
 
+// Helper to add messages with automatic trimming
+const xAddWithTrim = async (client: any, queue: string, data: any) => {
+  return await client.xAdd(queue, "*", data, {
+    TRIM: {
+      strategy: "MAXLEN",
+      threshold: 500,
+      strategyModifier: "~"
+    }
+  });
+};
+
 export const handleCreateOrder = async (
   client: RedisClientType,
   msg: any,
@@ -27,6 +38,12 @@ export const handleCreateOrder = async (
       id,
       error: "{}",
       data: JSON.stringify(tradeResponse),
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
   } catch (error: any) {
     const statusCode = error?.statusCode || 500;
@@ -36,6 +53,12 @@ export const handleCreateOrder = async (
       id,
       error: JSON.stringify({ statusCode, message: errorMessage }),
       data: "{}",
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
   }
 };
@@ -53,11 +76,17 @@ export const getOpenOrders = async ({
       id,
       error: "{}",
       data: JSON.stringify(openTrades),
+    }, {
+      TRIM: {
+        strategy: "MAXLEN",
+        threshold: 500,
+        strategyModifier: "~"
+      }
     });
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -78,7 +107,7 @@ export const handleCloseOrder = async ({
 
   console.log("trade", trade)
   if (!trade) {
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode: 404, message: "Trade not found" }),
       data: "{}",
@@ -93,7 +122,7 @@ export const handleCloseOrder = async ({
 
       console.log("market price", marketPrice)
   if (!marketPrice) {
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({
         statusCode: 400,
@@ -119,7 +148,7 @@ export const handleCloseOrder = async ({
     console.log(`Trade ${orderId} closed with PnL: ${pnl}`);
   } else {
     if (!trade.qty) {
-      await client.xAdd(CALLBACK_QUEUE, "*", {
+      await xAddWithTrim(client, CALLBACK_QUEUE, {
         id,
         error: JSON.stringify({
           statusCode: 400,
@@ -161,7 +190,7 @@ export const handleCloseOrder = async ({
   await storeManager.closeTrade(orderId, marketPrice);
   storeManager.updateBalance("usd", newUsdBalance!);
 
-  await client.xAdd(CALLBACK_QUEUE, "*", {
+  await xAddWithTrim(client, CALLBACK_QUEUE, {
     id,
     error: "{}",
     data: JSON.stringify({ message: "Trade closed successfully" }),
@@ -178,7 +207,7 @@ export const getBalance = async ({
   try {
     const balance = storeManager.getBalance();
     const responseData = { usd_balance: balance.usd?.qty };
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(responseData),
@@ -186,7 +215,7 @@ export const getBalance = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -227,7 +256,7 @@ export const getClosedTrades = async ({
       return response;
     });
 
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(formattedTrades),
@@ -235,7 +264,7 @@ export const getClosedTrades = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -331,7 +360,7 @@ export const getAssets = async ({
 
     const responseData = { assets };
 
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(responseData),
@@ -339,7 +368,7 @@ export const getAssets = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -358,7 +387,7 @@ export const handleSignup = async ({
 }) => {
   try {
     if (userManager.userExists(email)) {
-      await client.xAdd(CALLBACK_QUEUE, "*", {
+      await xAddWithTrim(client, CALLBACK_QUEUE, {
         id,
         error: JSON.stringify({ statusCode: 409, message: "User already exists with this email" }),
         data: "{}",
@@ -383,7 +412,7 @@ export const handleSignup = async ({
 
 
     console.log("Verification token generated:");
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(responseData),
@@ -391,7 +420,7 @@ export const handleSignup = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -410,7 +439,7 @@ export const handleSignin = async ({
 }) => {
   try {
     if (!userManager.userExists(email)) {
-      await client.xAdd(CALLBACK_QUEUE, "*", {
+      await xAddWithTrim(client, CALLBACK_QUEUE, {
         id,
         error: JSON.stringify({ statusCode: 404, message: "No account found with this email. Please sign up first." }),
         data: "{}",
@@ -433,7 +462,7 @@ export const handleSignin = async ({
       verificationToken,
     };
 
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(responseData),
@@ -441,7 +470,7 @@ export const handleSignin = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -462,7 +491,7 @@ export const handleVerifyAuth = async ({
     const result = userManager.completeVerification(token);
     
     if (!result.success || !result.user) {
-      await client.xAdd(CALLBACK_QUEUE, "*", {
+      await xAddWithTrim(client, CALLBACK_QUEUE, {
         id,
         error: JSON.stringify({ statusCode: 400, message: result.error || "Verification failed" }),
         data: "{}",
@@ -482,7 +511,7 @@ export const handleVerifyAuth = async ({
       sessionToken,
     };
 
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(responseData),
@@ -490,7 +519,7 @@ export const handleVerifyAuth = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -514,7 +543,7 @@ export const handleLogout = async ({
       message: removed ? "Logged out successfully" : "Session not found",
     };
 
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(responseData),
@@ -522,7 +551,7 @@ export const handleLogout = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
@@ -540,7 +569,7 @@ export const getUserStats = async ({
   try {
     const stats = userManager.getStats();
     
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: "{}",
       data: JSON.stringify(stats),
@@ -548,7 +577,7 @@ export const getUserStats = async ({
   } catch (error) {
     const statusCode = (error as any).statusCode || 500;
     const errorMessage = (error as any).message || "Internal Server Error";
-    await client.xAdd(CALLBACK_QUEUE, "*", {
+    await xAddWithTrim(client, CALLBACK_QUEUE, {
       id,
       error: JSON.stringify({ statusCode, message: errorMessage, error }),
       data: "{}",
