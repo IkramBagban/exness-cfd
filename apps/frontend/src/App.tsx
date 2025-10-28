@@ -1,29 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, Plus, Minus, Search, Settings, BarChart3, Clock, DollarSign, Activity, Orbit } from 'lucide-react';
 import { instruments } from './utils/constants';
-// import Instruments from './components/Instruments';
-
 import Header from './components/Header';
 import Instruments from './components/Instruments';
 import ChartHeader from './components/ChartHeader';
 import Orders from './components/Orders';
 import Chart from './components/Chart';
 import { IChartApi } from 'lightweight-charts';
+import { useBalance, useCreateOrder } from './utils/queries';
 
 const App = () => {
-  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  // Initialize selectedSymbol from URL query param or default to BTCUSDT
+  const getInitialSymbol = () => {
+    const params = new URLSearchParams(window.location.search);
+    const symbolFromUrl = params.get('symbol');
+    return symbolFromUrl || 'BTCUSDT';
+  };
+
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(getInitialSymbol());
   const [orderType, setOrderType] = useState('buy');
   const [volume, setVolume] = useState('0.01');
   const [wsConnected, setWsConnected] = useState(false);
   const [prices, setPrices] = useState<Record<string, { bid: number; ask: number; time: number }>>({});
-  const [balance, setBalance] = useState({});
   const [timeWindow, setTimeWindow] = useState<("1m" | "5m" | "1h" | "1d")>("1m");
   const [isTakingLeverage, setIsTakingLeverage] = useState(false);
   const [leverage, setLeverage] = useState(5);
   const [margin, setMargin] = useState(100);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const chartElementRef = useRef(null);
   const ws = useRef<WebSocket | null>(null);
+
+  const { data: balance = {} } = useBalance();
+  const createOrderMutation = useCreateOrder();
+
+  // Update URL when selectedSymbol changes
+  useEffect(() => {
+    if (selectedSymbol) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('symbol', selectedSymbol);
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [selectedSymbol]);
 
   useEffect(() => {
     const connectWS = () => {
@@ -72,28 +88,6 @@ const App = () => {
     };
   }, []);
 
-  useEffect(() => {
-    loadBalance();
-    // loadOrders();
-    // const interval = setInterval(() => {
-    // loadBalance();
-    // loadOrders();
-    // }, 5000);
-
-    // return () => clearInterval(interval);
-  }, []);
-
-  const loadBalance = async () => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/balance`);
-      // console.log("balancer response", response)
-      const data = await response.json();
-      setBalance(data);
-    } catch (error) {
-      console.error('Error loading balance:', error);
-    }
-  };
-
   const submitOrder = async (type?: string) => {
     try {
       const _confirm = confirm("Do you want to execute order?");
@@ -101,33 +95,19 @@ const App = () => {
 
       const tradeType = type || orderType;
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1/trade/open`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: tradeType,
-          symbol: selectedSymbol,
-          qty: parseFloat(volume)
-        })
+      await createOrderMutation.mutateAsync({
+        type: tradeType,
+        symbol: selectedSymbol!,
+        qty: parseFloat(volume),
+        ...(isTakingLeverage && { margin, leverage })
       });
-
-      if (response.ok) {
-        loadBalance();
-        // Trigger refresh of orders
-        setRefreshTrigger(prev => prev + 1);
-      }
     } catch (error) {
       console.error('Error submitting order:', error);
     }
   };
 
-  // Function to trigger orders refresh from child component
-  const handleOrderUpdate = () => {
-    setRefreshTrigger(prev => prev + 1);
-    loadBalance(); // Also refresh balance when orders change
-  };
-
-  const getDisplayPrice = (symbol, type) => {
+  const getDisplayPrice = (symbol: string | null, type: 'bid' | 'ask') => {
+    if (!symbol) return undefined;
     const instrument = instruments.find(i => i.symbol === symbol);
     const livePrice = prices[symbol];
 
@@ -164,7 +144,7 @@ const App = () => {
             tick={{ price: prices[selectedSymbol!]?.ask, time: new Date(prices[selectedSymbol!]?.time)?.getTime() }}
             selectedSymbol={selectedSymbol} />
           <div className="h-64 overflow-auto">
-            <Orders prices={prices} onOrderUpdate={handleOrderUpdate} refreshTrigger={refreshTrigger} />
+            <Orders prices={prices} />
           </div>
         </div>
 

@@ -181,12 +181,12 @@ app.get("/api/v1/trades/open", async (req, res, next) => {
     let responseFromEngine = await redisSubscriber.waitForMessage(id);
     const errorResponse = JSON.parse(responseFromEngine.message.error);
     const dataResponse = JSON.parse(responseFromEngine.message.data);
-    if (Object.keys(dataResponse).length > 0) {
-      res.status(200).json(dataResponse);
-    } else {
+    if (Object.keys(errorResponse).length > 0) {
       res.status(errorResponse.statusCode || 500).json({
-        error: errorResponse.message,
+        error: errorResponse.message + "  -  ", 
       });
+    } else {
+      res.status(200).json(dataResponse); 
     }
   } catch (error) {
     console.error("Error fetching open trades:", error);
