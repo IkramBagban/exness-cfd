@@ -241,8 +241,8 @@ export const getClosedTrades = async ({
       const response: any = {
         orderId: trade.orderId,
         type: trade.type,
-        openPrice: trade.openPrice * 10000, 
-        closePrice: trade.closePrice! * 10000, 
+        openPrice: trade.openPrice, 
+        closePrice: trade.closePrice!, 
         pnl: pnl, 
       };
 
