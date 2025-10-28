@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { TrendingUp, TrendingDown, Plus, Minus, Search, Settings, BarChart3, Clock, DollarSign, Activity, Orbit } from 'lucide-react';
 import { instruments } from './utils/constants';
 import Header from './components/Header';
@@ -50,6 +51,7 @@ const App = () => {
         ws.current.onopen = () => {
           setWsConnected(true);
           console.log('Connected to WebSocket');
+          toast.success('Connected to live price feed', { duration: 2000 });
         };
 
         ws.current.onmessage = (event) => {
@@ -66,6 +68,7 @@ const App = () => {
 
         ws.current.onclose = () => {
           setWsConnected(false);
+          toast.error('Disconnected from price feed. Reconnecting...', { duration: 2000 });
           setTimeout(connectWS, 3000);
         };
 
@@ -90,6 +93,29 @@ const App = () => {
 
   const submitOrder = async (type?: string) => {
     try {
+      // Validation
+      if (!selectedSymbol) {
+        toast.error('Please select a symbol first');
+        return;
+      }
+
+      const volumeNum = parseFloat(volume);
+      if (isNaN(volumeNum) || volumeNum <= 0) {
+        toast.error('Please enter a valid volume');
+        return;
+      }
+
+      if (isTakingLeverage) {
+        if (!margin || margin <= 0) {
+          toast.error('Please enter a valid margin');
+          return;
+        }
+        if (!leverage || leverage <= 0) {
+          toast.error('Please select a valid leverage');
+          return;
+        }
+      }
+
       const _confirm = confirm("Do you want to execute order?");
       if (!_confirm) return;
 
@@ -98,10 +124,11 @@ const App = () => {
       await createOrderMutation.mutateAsync({
         type: tradeType,
         symbol: selectedSymbol!,
-        qty: parseFloat(volume),
+        qty: volumeNum,
         ...(isTakingLeverage && { margin, leverage })
       });
     } catch (error) {
+      // Error is already handled by the mutation's onError
       console.error('Error submitting order:', error);
     }
   };

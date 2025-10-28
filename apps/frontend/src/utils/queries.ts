@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { calculatePnL } from './helpers';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -64,6 +65,11 @@ export const useOrders = (
       }));
     },
     staleTime: 500, // Refetch every 500ms to get fresh data
+    retry: 2,
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch orders';
+      toast.error(`Error loading ${tradeType} orders: ${errorMessage}`);
+    },
   });
 };
 
@@ -83,6 +89,12 @@ export const useCloseOrder = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ordersKeys.lists() });
       queryClient.invalidateQueries({ queryKey: balanceKeys.all });
+      toast.success('Order closed successfully');
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to close order';
+      toast.error(errorMessage);
+      console.error('Error closing order:', error);
     },
   });
 };
@@ -92,9 +104,15 @@ export const useCreateOrder = () => {
 
   return useMutation({
     mutationFn: createOrderApi,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ordersKeys.list('open') });
       queryClient.invalidateQueries({ queryKey: balanceKeys.all });
+      toast.success('Order created successfully');
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to create order';
+      toast.error(errorMessage);
+      console.error('Error creating order:', error);
     },
   });
 };

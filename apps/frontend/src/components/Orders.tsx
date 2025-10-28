@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 import { useOrders, useCloseOrder } from '../utils/queries';
 
@@ -18,12 +19,17 @@ const Orders = ({ prices }: OrdersProps) => {
     };
 
     const closeOrder = async (orderId: string) => {
+        const confirmed = confirm('Are you sure you want to close this position?');
+        if (!confirmed) return;
+
         try {
             await closeOrderMutation.mutateAsync(orderId);
         } catch (error) {
             console.error('Error closing order:', error);
         }
     };
+
+    const positionsList = Array.isArray(positions) ? positions : [];
 
     return (
         <div className="flex-1 flex flex-col">
@@ -50,15 +56,15 @@ const Orders = ({ prices }: OrdersProps) => {
                     </div>
                 ) : error ? (
                     <div className="p-4 text-center text-red-400">
-                        Error loading orders: {error.message}
+                        Error loading orders: {(error as Error).message}
                     </div>
-                ) : positions.length === 0 ? (
+                ) : positionsList.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
                         No {tradeType} positions
                     </div>
                 ) : (
                     <div className="space-y-2 p-2">
-                        {positions.map((position) => (
+                        {positionsList.map((position: any) => (
                             <div key={position.orderId} className="bg-gray-800 rounded p-3 text-sm border border-gray-700">
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center space-x-2">
