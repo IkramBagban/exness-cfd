@@ -240,6 +240,7 @@ export const getClosedTrades = async ({
 
       const response: any = {
         orderId: trade.orderId,
+        symbol: trade.symbol,
         type: trade.type,
         openPrice: trade.openPrice, 
         closePrice: trade.closePrice!, 

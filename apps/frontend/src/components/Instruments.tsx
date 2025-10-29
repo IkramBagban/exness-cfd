@@ -1,8 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { instruments } from '../utils/constants';
 
-const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }) => {
+interface InstrumentsProps {
+  selectedSymbol: string | null;
+  prices: Record<string, { bid: number; ask: number; time: number }>;
+  setSelectedSymbol: (symbol: string) => void;
+}
+
+const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }: InstrumentsProps) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const filteredInstruments = instruments.filter((instrument) => {
+    if (!debouncedSearch) return true;
+    const search = debouncedSearch.toLowerCase();
+    return (
+      instrument.symbol.toLowerCase().includes(search) ||
+      instrument.name.toLowerCase().includes(search)
+    );
+  });
+
   return (
     <div className="w-85 bg-gray-800 border-r border-gray-700">
       <div className="p-4 border-b border-gray-700">
@@ -10,7 +36,9 @@ const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }) => {
           <Search className="w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search"
+            placeholder="Search instruments..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="bg-gray-700 text-white px-3 py-2 rounded text-sm flex-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -18,9 +46,16 @@ const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }) => {
       </div>
 
       <div className="p-2">
-        <div className="text-xs text-gray-400 mb-2 px-2">Favorites</div>
+        <div className="text-xs text-gray-400 mb-2 px-2">
+          {debouncedSearch ? `Found ${filteredInstruments.length} results` : 'Favorites'}
+        </div>
         <div className="space-y-1">
-          {instruments.map((instrument) => {
+          {filteredInstruments.length === 0 ? (
+            <div className="text-center text-gray-500 py-4 text-sm">
+              No instruments found
+            </div>
+          ) : (
+            filteredInstruments.map((instrument) => {
             const isSelected = selectedSymbol === instrument.symbol;
             const livePrice = prices[instrument.symbol];
             const currentBid = livePrice?.bid || instrument.bid;
@@ -47,7 +82,8 @@ const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }) => {
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </div>
     </div>)

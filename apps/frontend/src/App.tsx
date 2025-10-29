@@ -177,161 +177,124 @@ const App = () => {
 
 
         <div className="w-96 bg-gray-800 border-l border-gray-700 flex flex-col">
-          {/* current pric */}
+          {/* Current Symbol Info */}
           <div className="p-4 border-b border-gray-700">
-            <div className="text-sm text-gray-400 mb-2">{selectedInstrument?.name}</div>
-            {/* <div className="grid grid-cols-2 gap-4">
-              <div className="bg-red-900/20 border border-red-500/30 rounded p-3">
-                <div className="text-xs text-red-400 mb-1">Sell</div>
-                <div className="text-lg font-mono font-bold text-red-400">
-                  {currentAsk?.toFixed(4)}
-
-                </div>
-                <div className="text-xs text-gray-400">36%</div>
-              </div>
-              <div className="bg-blue-900/20 border border-blue-500/30 rounded p-3">
-                <div className="text-xs text-blue-400 mb-1">Buy</div>
-                <div className="text-lg font-mono font-bold text-blue-400">
-                  {currentBid?.toFixed(4)}
-                </div>
-                <div className="text-xs text-gray-400">64%</div>
-              </div>
-            </div> */}
+            <div className="text-sm text-gray-400 mb-1">{selectedInstrument?.name}</div>
+            <div className="text-2xl font-mono font-bold text-white">
+              {selectedInstrument?.symbol}
+            </div>
           </div>
 
-          <div className="p-4 border-b border-gray-700">
-            <div className="flex mb-4">
+          {/* Trading Form */}
+          <div className="p-4 border-b border-gray-700 space-y-4">
+            <div className="flex rounded overflow-hidden">
               <button
-                className={`flex-1 py-2 text-sm font-medium rounded-l  bg-blue-600 text-white`}
+                className="flex-1 py-2.5 text-sm font-medium bg-blue-600 text-white"
               >
                 Market
               </button>
               <button
                 disabled={true}
-                className={`flex-1 py-2 text-sm font-medium rounded-r bg-gray-700 text-gray-300 cursor-not-allowed`}
+                className="flex-1 py-2.5 text-sm font-medium bg-gray-700 text-gray-400 cursor-not-allowed"
               >
                 Pending
               </button>
             </div>
 
-            <div className=''>
-              <div className='flex gap-3 items-center'>
-                <span className="text-xs text-gray-400">Leverage</span>
-                <input type="checkbox" onClick={() => setIsTakingLeverage(!isTakingLeverage)} />
-              </div>
-
-              {
-                isTakingLeverage && <div className='flex gap-2'>
-                  <div className=" flex flex-col">
-
-                    <span>Margin</span>
-                    <input
-                      type='number'
-                      value={margin}
-                      onChange={(e) => setMargin(parseFloat(e.target?.value))}
-                      className="bg-gray-700 rounded flex-1 text-center py-2 focus:outline-none"
-                      step="0.01"
-                    />
-                  </div>
-                  <div className="">
-                    <span>Leverage</span>
-                    <select value={leverage} onChange={(e) => setLeverage(parseInt(e.target.value))} className="bg-gray-700 rounded flex-1 text-center py-2 focus:outline-none w-full">
-                      <option value="5">5x</option>
-                      <option value="10">10x</option>
-                      <option value="20">20x</option>
-                      <option value="100">100x</option>
-                    </select>
-
-                  </div>
-                </div>
-              }
-
+            {/* Leverage Toggle */}
+            <div className="flex items-center gap-3 p-3 bg-gray-700/50 rounded">
+              <input 
+                type="checkbox" 
+                id="leverage-toggle"
+                checked={isTakingLeverage}
+                onChange={() => setIsTakingLeverage(!isTakingLeverage)}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <label htmlFor="leverage-toggle" className="text-sm text-gray-300 cursor-pointer">
+                Use Leverage
+              </label>
             </div>
 
-            <div className="space-y-4">
-              {
-                !isTakingLeverage && <div>
-                  <label className="text-xs text-gray-400 mb-2 block">Volume</label>
-                  <div className="flex items-center bg-gray-700 rounded">
-                    <button
-                      onClick={() => setVolume(Math.max(0.01, parseFloat(volume) - 0.01).toFixed(2))} // to prevent volume to go below 0.01
-                      className="p-2 hover:bg-gray-600 rounded-l"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <input
-                      type="number"
-                      value={volume}
-                      onChange={(e) => setVolume(e.target.value)}
-                      className="flex-1 bg-transparent text-center py-2 focus:outline-none"
-                      step="0.01"
-                    />
-                    <span className="px-2 text-xs text-gray-400">Lots</span>
-                    <button
-                      onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))}
-                      className="p-2 hover:bg-gray-600 rounded-r"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              }
-
-              {/* 
-              <div>
-                <label className="text-xs text-gray-400 mb-2 block">Take Profit</label>
-                <div className="flex items-center space-x-2">
+            {isTakingLeverage && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-gray-400">Margin</label>
                   <input
-                    type="text"
-                    placeholder="Not set"
-                    className="flex-1 bg-gray-700 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    type="number"
+                    value={margin}
+                    onChange={(e) => setMargin(parseFloat(e.target.value))}
+                    className="bg-gray-700 rounded px-3 py-2.5 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    step="0.01"
+                    placeholder="100"
                   />
-                  <select className="bg-gray-700 px-2 py-2 rounded text-sm focus:outline-none">
-                    <option>Price</option>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-gray-400">Leverage</label>
+                  <select 
+                    value={leverage} 
+                    onChange={(e) => setLeverage(parseInt(e.target.value))} 
+                    className="bg-gray-700 rounded px-1 py-2.5 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="5">5x</option>
+                    <option value="10">10x</option>
+                    <option value="20">20x</option>
+                    <option value="100">100x</option>
                   </select>
-                  <button className="p-2 text-blue-400 hover:bg-gray-700 rounded">
+                </div>
+              </div>
+            )}
+
+
+            {!isTakingLeverage && (
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-gray-400">Volume</label>
+                <div className="flex items-center bg-gray-700 rounded overflow-hidden">
+                  <button
+                    onClick={() => setVolume(Math.max(0.01, parseFloat(volume) - 0.01).toFixed(2))}
+                    className="p-2.5 hover:bg-gray-600 transition-colors"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    value={volume}
+                    onChange={(e) => setVolume(e.target.value)}
+                    className="flex-1 bg-transparent text-center py-2.5 focus:outline-none"
+                    step="0.01"
+                  />
+                  <span className="px-3 text-xs text-gray-400">Lots</span>
+                  <button
+                    onClick={() => setVolume((parseFloat(volume) + 0.01).toFixed(2))}
+                    className="p-2.5 hover:bg-gray-600 transition-colors"
+                  >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
+            )}
 
-              <div>
-                <label className="text-xs text-gray-400 mb-2 block">Stop Loss</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    placeholder="Not set"
-                    className="flex-1 bg-gray-700 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                  <select className="bg-gray-700 px-2 py-2 rounded text-sm focus:outline-none">
-                    <option>Price</option>
-                  </select>
-                  <button className="p-2 text-blue-400 hover:bg-gray-700 rounded">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div> */}
 
-              <div className="grid grid-cols-2 gap-2 mt-6">
-                <button
-                  onClick={() => { 
-                    setOrderType('sell'); 
-                    submitOrder('sell');  // Pass type directly
-                  }}
-                  className="bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded font-medium transition-colors"
-                >
-                  Sell {currentAsk?.toFixed(3)}
-                </button>
-                <button
-                  onClick={() => { 
-                    setOrderType('buy'); 
-                    submitOrder('buy');  // Pass type directly
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded font-medium transition-colors"
-                >
-                  Buy {currentBid?.toFixed(3)}
-                </button>
-              </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => { 
+                  setOrderType('sell'); 
+                  submitOrder('sell');
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white py-3.5 px-4 rounded font-medium transition-colors flex flex-col items-center justify-center"
+              >
+                <span className="text-xs opacity-75 mb-1">Sell</span>
+                <span className="font-mono font-bold">{currentAsk?.toFixed(3)}</span>
+              </button>
+              <button
+                onClick={() => { 
+                  setOrderType('buy'); 
+                  submitOrder('buy');
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded font-medium transition-colors flex flex-col items-center justify-center"
+              >
+                <span className="text-xs opacity-75 mb-1">Buy</span>
+                <span className="font-mono font-bold">{currentBid?.toFixed(3)}</span>
+              </button>
             </div>
           </div>
         </div>

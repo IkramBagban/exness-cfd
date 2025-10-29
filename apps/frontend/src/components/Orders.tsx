@@ -9,7 +9,7 @@ interface OrdersProps {
 
 const Orders = ({ prices }: OrdersProps) => {
     const [tradeType, setTradeType] = useState<'open' | 'closed'>('open');
-    
+
     const { data: positions = [], isLoading, error } = useOrders(tradeType, prices);
     const closeOrderMutation = useCloseOrder();
 
@@ -34,14 +34,14 @@ const Orders = ({ prices }: OrdersProps) => {
     return (
         <div className="flex-1 flex flex-col">
             <div className="flex border-b border-gray-700">
-                <button 
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${tradeType === 'open' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`} 
+                <button
+                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${tradeType === 'open' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
                     onClick={() => handleTradeTypeChange('open')}
                 >
                     Open
                 </button>
-                <button 
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${tradeType === 'closed' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`} 
+                <button
+                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${tradeType === 'closed' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
                     onClick={() => handleTradeTypeChange('closed')}
                 >
                     Closed
@@ -104,8 +104,8 @@ const Orders = ({ prices }: OrdersProps) => {
                                         <div className="text-white">{(position.openPrice).toFixed(3)}</div>
                                     </div>
                                     <div>
-                                        <div>Current price</div>
-                                        <div className="text-white">{position.currentPrice?.toFixed(3) || (position.openPrice).toFixed(3)}</div>
+                                        <div>{tradeType === 'open' ? "Current price" : "Close price"}</div>
+                                        <div className="text-white">{tradeType === 'open' ? position.currentPrice?.toFixed(3) : position.closePrice?.toFixed(3)}</div>
                                     </div>
                                 </div>
                             </div>
