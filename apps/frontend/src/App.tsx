@@ -274,26 +274,26 @@ const App = () => {
             )}
 
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="flex gap-2 w-full mt-3">
               <button
                 onClick={() => { 
                   setOrderType('sell'); 
                   submitOrder('sell');
                 }}
-                className="bg-red-600 hover:bg-red-700 text-white py-3.5 px-4 rounded font-medium transition-colors flex flex-col items-center justify-center"
+                className="flex-1 flex flex-col items-center justify-center py-2 px-4 rounded-lg bg-red-600 hover:bg-red-700 transition-colors shadow-md cursor-pointer"
               >
-                <span className="text-xs opacity-75 mb-1">Sell</span>
-                <span className="font-mono font-bold">{currentAsk?.toFixed(3)}</span>
+                <span className="text-[10px] font-medium text-red-100 uppercase tracking-wide mb-0.5">Sell</span>
+                <span className="text-lg font-bold text-white font-mono leading-tight">{currentAsk?.toFixed(3)}</span>
               </button>
               <button
                 onClick={() => { 
                   setOrderType('buy'); 
                   submitOrder('buy');
                 }}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded font-medium transition-colors flex flex-col items-center justify-center"
+                className="flex-1 flex flex-col items-center justify-center py-2 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors shadow-md cursor-pointer"
               >
-                <span className="text-xs opacity-75 mb-1">Buy</span>
-                <span className="font-mono font-bold">{currentBid?.toFixed(3)}</span>
+                <span className="text-[10px] font-medium text-blue-100 uppercase tracking-wide mb-0.5">Buy</span>
+                <span className="text-lg font-bold text-white font-mono leading-tight">{currentBid?.toFixed(3)}</span>
               </button>
             </div>
           </div>
