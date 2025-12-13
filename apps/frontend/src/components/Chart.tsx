@@ -38,21 +38,31 @@ const Chart = ({ chartRef, window = "1m", tick, selectedSymbol, chartElementRef 
 
                 const chartOptions = {
                     layout: { 
-                        textColor: 'black', 
+                        textColor: '#848E9C', 
                         background: { 
                             type: ColorType.Solid as const, 
-                            color: 'white' 
+                            color: '#131722' 
                         } 
-                    }
+                    },
+                    grid: {
+                        vertLines: { color: '#2A2E39' },
+                        horzLines: { color: '#2A2E39' },
+                    },
+                    timeScale: {
+                        borderColor: '#2A2E39',
+                    },
+                    rightPriceScale: {
+                        borderColor: '#2A2E39',
+                    },
                 };
 
                 chartRef.current = createChart(chartElementRef.current, chartOptions);
                 const candlestickSeries = chartRef.current.addSeries(CandlestickSeries, {
-                    upColor: '#26a69a',
-                    downColor: '#ef5350',
+                    upColor: '#0ECB81',
+                    downColor: '#F6465D',
                     borderVisible: false,
-                    wickUpColor: '#26a69a',
-                    wickDownColor: '#ef5350'
+                    wickUpColor: '#0ECB81',
+                    wickDownColor: '#F6465D'
                 });
                 candlestickSeriesRef.current = candlestickSeries;
 

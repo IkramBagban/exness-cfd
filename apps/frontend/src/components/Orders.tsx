@@ -32,80 +32,92 @@ const Orders = ({ prices }: OrdersProps) => {
     const positionsList = Array.isArray(positions) ? positions : [];
 
     return (
-        <div className="flex-1 flex flex-col">
-            <div className="flex border-b border-gray-700">
+        <div className="flex-1 flex flex-col bg-[#131722]">
+            <div className="flex border-b border-[#2A2E39]">
                 <button
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${tradeType === 'open' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex-1 py-3 px-4 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
+                        tradeType === 'open' 
+                            ? 'border-[#FCD535] text-[#EAECEF] bg-[#1E222D]' 
+                            : 'border-transparent text-[#848E9C] hover:text-[#EAECEF] hover:bg-[#1E222D]/50'
+                    }`}
                     onClick={() => handleTradeTypeChange('open')}
                 >
-                    Open
+                    Open Positions
                 </button>
                 <button
-                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${tradeType === 'closed' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
+                    className={`flex-1 py-3 px-4 text-xs font-bold uppercase tracking-wider transition-all border-b-2 ${
+                        tradeType === 'closed' 
+                            ? 'border-[#FCD535] text-[#EAECEF] bg-[#1E222D]' 
+                            : 'border-transparent text-[#848E9C] hover:text-[#EAECEF] hover:bg-[#1E222D]/50'
+                    }`}
                     onClick={() => handleTradeTypeChange('closed')}
                 >
-                    Closed
+                    History
                 </button>
             </div>
 
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto custom-scrollbar">
                 {isLoading ? (
-                    <div className="p-4 text-center text-gray-400">
-                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                        <div className="mt-2">Loading {tradeType} positions...</div>
+                    <div className="p-8 text-center text-[#848E9C]">
+                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#FCD535] border-t-transparent"></div>
+                        <div className="mt-3 text-xs font-medium">Loading positions...</div>
                     </div>
                 ) : error ? (
-                    <div className="p-4 text-center text-red-400">
-                        Error loading orders: {(error as Error).message}
+                    <div className="p-8 text-center text-[#F6465D] text-sm">
+                        Error: {(error as Error).message}
                     </div>
                 ) : positionsList.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">
-                        No {tradeType} positions
+                    <div className="p-12 text-center text-[#848E9C] flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-full bg-[#2A2E39] flex items-center justify-center mb-3">
+                            <span className="text-xl opacity-50">📝</span>
+                        </div>
+                        <span className="text-sm">No {tradeType} positions found</span>
                     </div>
                 ) : (
-                    <div className="space-y-2 p-2">
+                    <div className="space-y-2 p-3">
                         {positionsList.map((position: any) => (
-                            <div key={position.orderId} className="bg-gray-800 rounded p-3 text-sm border border-gray-700">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center space-x-2">
-                                        <div className={`w-2 h-2 rounded-full ${position.type === 'buy' ? 'bg-blue-500' : 'bg-red-500'}`}></div>
-                                        <span className="font-medium">{position.symbol}</span>
+                            <div key={position.orderId} className="bg-[#1E222D] rounded-lg p-4 text-sm border border-[#2A2E39] hover:border-[#474D57] transition-colors shadow-sm group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center space-x-3">
+                                        <div className={`w-1.5 h-8 rounded-full ${position.type === 'buy' ? 'bg-[#0ECB81]' : 'bg-[#F6465D]'}`}></div>
+                                        <div>
+                                            <div className="font-bold text-[#EAECEF]">{position.symbol}</div>
+                                            <div className={`text-xs font-medium uppercase ${position.type === 'buy' ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                                                {position.type === 'buy' ? 'Buy' : 'Sell'}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <span className={position.pnl >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                            {position.pnl >= 0 ? '+' : ''}{position.pnl?.toFixed(2) || '0.00'}
-                                        </span>
+                                    <div className="flex items-center space-x-3">
+                                        <div className="text-right">
+                                            <div className={`text-sm font-mono font-bold ${position.pnl >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}`}>
+                                                {position.pnl >= 0 ? '+' : ''}{position.pnl?.toFixed(2) || '0.00'} <span className="text-xs text-[#848E9C] font-sans font-normal">USD</span>
+                                            </div>
+                                        </div>
                                         {tradeType === 'open' && (
                                             <button
                                                 onClick={() => closeOrder(position.orderId)}
                                                 disabled={closeOrderMutation.isPending}
-                                                className="p-1 hover:bg-gray-600 rounded text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50"
+                                                className="p-2 hover:bg-[#2A2E39] rounded-md text-[#848E9C] hover:text-[#F6465D] transition-colors opacity-0 group-hover:opacity-100"
                                                 title="Close Position"
                                             >
-                                                <X size={14} />
+                                                <X size={16} />
                                             </button>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-4 gap-2 text-xs text-gray-400">
-                                    <div className='flex flex-col gap-1'>
-                                        <div>Type</div>
-                                        <div className={position.type === 'buy' ? 'text-blue-400' : 'text-red-400'}>
-                                            {position.type === 'buy' ? 'Buy' : 'Sell'}
-                                        </div>
+                                <div className="grid grid-cols-3 gap-4 text-xs border-t border-[#2A2E39] pt-3 mt-2">
+                                    <div>
+                                        <div className="text-[#848E9C] mb-1">Volume</div>
+                                        <div className="text-[#EAECEF] font-mono">{position.qty}</div>
                                     </div>
                                     <div>
-                                        <div>Volume, lot</div>
-                                        <div className="text-white">{position.qty}</div>
+                                        <div className="text-[#848E9C] mb-1">Open Price</div>
+                                        <div className="text-[#EAECEF] font-mono">{(position.openPrice).toFixed(3)}</div>
                                     </div>
-                                    <div>
-                                        <div>Open price</div>
-                                        <div className="text-white">{(position.openPrice).toFixed(3)}</div>
-                                    </div>
-                                    <div>
-                                        <div>{tradeType === 'open' ? "Current price" : "Close price"}</div>
-                                        <div className="text-white">{tradeType === 'open' ? position.currentPrice?.toFixed(3) : position.closePrice?.toFixed(3)}</div>
+                                    <div className="text-right">
+                                        <div className="text-[#848E9C] mb-1">{tradeType === 'open' ? "Current" : "Closed"}</div>
+                                        <div className="text-[#EAECEF] font-mono">{tradeType === 'open' ? position.currentPrice?.toFixed(3) : position.closePrice?.toFixed(3)}</div>
                                     </div>
                                 </div>
                             </div>

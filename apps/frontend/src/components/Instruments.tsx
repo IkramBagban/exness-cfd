@@ -30,23 +30,23 @@ const Instruments = ({ selectedSymbol, prices, setSelectedSymbol }: InstrumentsP
   });
 
   return (
-    <div className="w-85 bg-gray-800 border-r border-gray-700">
-      <div className="p-4 border-b border-gray-700">
-        <div className="flex items-center space-x-2 mb-4">
-          <Search className="w-4 h-4 text-gray-400" />
+    <div className="w-85 bg-[#1E222D] border-r border-[#2A2E39] flex flex-col">
+      <div className="p-4 border-b border-[#2A2E39]">
+        <div className="flex items-center space-x-2 mb-4 bg-[#2A2E39] rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-[#FCD535] transition-all">
+          <Search className="w-4 h-4 text-[#848E9C]" />
           <input
             type="text"
-            placeholder="Search instruments..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-gray-700 text-white px-3 py-2 rounded text-sm flex-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="bg-transparent text-[#EAECEF] text-sm flex-1 focus:outline-none placeholder-[#5E6673]"
           />
         </div>
-        <div className="text-sm font-medium text-gray-300 mb-2">INSTRUMENTS</div>
+        <div className="text-xs font-bold text-[#848E9C] mb-2 px-1">MARKETS</div>
       </div>
 
-      <div className="p-2">
-        <div className="text-xs text-gray-400 mb-2 px-2">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="text-xs text-[#848E9C] mb-2 px-4 mt-2 font-medium">
           {debouncedSearch ? `Found ${filteredInstruments.length} results` : 'Favorites'}
         </div>
         <div className="space-y-1">
