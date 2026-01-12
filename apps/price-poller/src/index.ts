@@ -32,29 +32,43 @@ interface Tick {
 const buffer: any[] = [];
 let updatedTickForstream: Tick | {} = {};
 
+const WS_ENDPOINTS = [
+  `wss://data-stream.binance.vision/stream?streams=${streams}`,
+  `wss://fstream.binance.com/stream?streams=${streams}`,
+  `wss://stream.binance.com:9443/stream?streams=${streams}`,
+];
+
+let wsIndex = 0;
+
+
 const connectWs = () => {
-  let wss = new WebSocket(wsURL);
-  console.log("Connecting to Binance WS...");
+  const wsURL = WS_ENDPOINTS[wsIndex % WS_ENDPOINTS.length];
+  wsIndex++;
+
+  console.log("Connecting to Binance WS:", wsURL);
+
+  const wss = new WebSocket(wsURL);
+
   const pingInterval = setInterval(() => {
     if (wss.readyState === WebSocket.OPEN) wss.ping();
   }, 30000);
 
-  wss.on("open", () => console.log("Connected to Binance stream"));
+  wss.on("open", () => {
+    console.log("Connected to Binance stream");
+  });
 
   wss.on("message", async (msg) => {
     const parsedData: Message = JSON.parse(msg.toString());
     const { data } = parsedData;
     const price = parseFloat(data.p);
 
-    const tick = {
+    buffer.push({
       time: new Date(data.T),
       symbol: data.s,
-      price: price,
-    };
+      price,
+    });
 
-    buffer.push(tick);
-
-    const bidPrice = price + (price * 1) / 100;
+    const bidPrice = price + price * 0.01;
     const askPrice = price;
 
     updatedTickForstream = {
@@ -64,8 +78,9 @@ const connectWs = () => {
       ask: askPrice,
     };
   });
+
   wss.on("close", (code) => {
-    console.warn(`Binance WS closed (${code}), reconnecting in 5s...`);
+    console.warn(`Binance WS closed (${code}), rotating endpoint...`);
     clearInterval(pingInterval);
     setTimeout(connectWs, 5000);
   });
@@ -75,6 +90,51 @@ const connectWs = () => {
     wss.close();
   });
 };
+
+
+// const connectWs = () => {
+//   let wss = new WebSocket(wsURL);
+//   console.log("Connecting to Binance WS...");
+//   const pingInterval = setInterval(() => {
+//     if (wss.readyState === WebSocket.OPEN) wss.ping();
+//   }, 30000);
+
+//   wss.on("open", () => console.log("Connected to Binance stream"));
+
+//   wss.on("message", async (msg) => {
+//     const parsedData: Message = JSON.parse(msg.toString());
+//     const { data } = parsedData;
+//     const price = parseFloat(data.p);
+
+//     const tick = {
+//       time: new Date(data.T),
+//       symbol: data.s,
+//       price: price,
+//     };
+
+//     buffer.push(tick);
+
+//     const bidPrice = price + (price * 1) / 100;
+//     const askPrice = price;
+
+//     updatedTickForstream = {
+//       time: new Date(data.T),
+//       symbol: data.s,
+//       bid: bidPrice,
+//       ask: askPrice,
+//     };
+//   });
+//   wss.on("close", (code) => {
+//     console.warn(`Binance WS closed (${code}), reconnecting in 5s...`);
+//     clearInterval(pingInterval);
+//     setTimeout(connectWs, 5000);
+//   });
+
+//   wss.on("error", (err) => {
+//     console.error("Binance WS error:", err.message);
+//     wss.close();
+//   });
+// };
 
 const main = async () => {
   try {
