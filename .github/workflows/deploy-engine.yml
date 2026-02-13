@@ -39,9 +39,9 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USERNAME }}
-          key: ${{ secrets.VM_SSH_KEY }}
+          host: ${{ secrets.AWS_VM_HOST }}
+          username: ${{ secrets.AWS_VM_USERNAME }}
+          key: ${{ secrets.AWS_VM_SSH_KEY }}
           script: |
             docker pull ikrambagban/exness-engine:${{ github.sha }}
             docker network inspect exness-network || docker network create exness-network
