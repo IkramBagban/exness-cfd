@@ -97,7 +97,7 @@ const Orders = ({ prices }: OrdersProps) => {
                                             <button
                                                 onClick={() => closeOrder(position.orderId)}
                                                 disabled={closeOrderMutation.isPending}
-                                                className="p-2 hover:bg-[#2A2E39] rounded-md text-[#848E9C] hover:text-[#F6465D] transition-colors opacity-0 group-hover:opacity-100"
+                                                className="p-2 hover:bg-[#2A2E39] rounded-md text-[#848E9C] hover:text-[#F6465D] transition-colors opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                                                 title="Close Position"
                                             >
                                                 <X size={16} />
