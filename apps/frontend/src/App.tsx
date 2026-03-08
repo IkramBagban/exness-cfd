@@ -24,7 +24,12 @@ const App = () => {
   const getInitialSymbol = () => {
     const params = new URLSearchParams(window.location.search);
     const symbolFromUrl = params.get('symbol');
-    return symbolFromUrl || 'BTCUSDT';
+    const normalizedSymbol = symbolFromUrl?.toUpperCase();
+    const isKnownSymbol = normalizedSymbol
+      ? instruments.some((instrument) => instrument.symbol === normalizedSymbol)
+      : false;
+
+    return isKnownSymbol ? normalizedSymbol : 'BTCUSDT';
   };
 
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(getInitialSymbol());
@@ -64,9 +69,12 @@ const App = () => {
         ws.current.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            const symbol = String(data.symbol || '').toUpperCase();
+            if (!symbol) return;
+
             setPrices((prev) => ({
               ...prev,
-              [data.symbol]: { bid: data.bid, ask: data.ask, time: data.time },
+              [symbol]: { bid: data.bid, ask: data.ask, time: data.time },
             }));
           } catch (error) {
             console.error('Error parsing WebSocket data:', error);

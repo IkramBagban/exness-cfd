@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CandlestickData, CandlestickSeries, ColorType, createChart, IChartApi, ISeriesApi, Time, WhitespaceData } from 'lightweight-charts';
 import axios from 'axios';
 
@@ -29,9 +29,30 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const lastCandleRef = useRef<any>(null);
   const isFetchingRef = useRef(false);
+  const [hasData, setHasData] = useState(false);
+  const [lastTickAt, setLastTickAt] = useState<number | null>(null);
+
+  const getChartSize = () => {
+    const width = Math.max(chartElementRef.current?.clientWidth ?? 0, 320);
+    const height = Math.max(chartElementRef.current?.clientHeight ?? 0, 300);
+    return { width, height };
+  };
+
+  const normalizeCandles = (candles: any[] = []) => {
+    return candles.map((candle) => ({
+      time: Number(candle.time) as Time,
+      open: Number(candle.open),
+      high: Number(candle.high),
+      low: Number(candle.low),
+      close: Number(candle.close),
+    }));
+  };
 
   useEffect(() => {
     let resizeObserver: ResizeObserver | null = null;
+    setHasData(false);
+    setLastTickAt(null);
+    lastCandleRef.current = null;
 
     (async () => {
       try {
@@ -57,7 +78,12 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
           },
         };
 
-        chartRef.current = createChart(chartElementRef.current, chartOptions);
+        const { width, height } = getChartSize();
+        chartRef.current = createChart(chartElementRef.current, {
+          ...chartOptions,
+          width,
+          height,
+        });
         const candlestickSeries = chartRef.current.addSeries(CandlestickSeries, {
           upColor: '#0ECB81',
           downColor: '#F6465D',
@@ -69,12 +95,13 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
 
         chartRef.current.timeScale().fitContent();
 
-        const response = await fetchCandles(selectedSymbol, window, 10);
-        const initialCandles = response?.candles;
+        const response = await fetchCandles(selectedSymbol, window, 100);
+        const initialCandles = normalizeCandles(response?.candles);
 
         if (initialCandles && initialCandles.length > 0) {
           candlestickSeries.setData(initialCandles);
           lastCandleRef.current = initialCandles[initialCandles.length - 1];
+          setHasData(true);
           chartRef.current.timeScale().setVisibleLogicalRange({ from: Math.max(0, initialCandles.length - 10), to: initialCandles.length });
         }
 
@@ -87,11 +114,12 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
               const earliestTime = typeof earliest === 'number' ? earliest : typeof earliest === 'string' ? parseInt(earliest, 10) : null;
 
               const historicalResponse = await fetchCandles(selectedSymbol, window, 50, earliestTime);
-              const moreCandles = historicalResponse?.candles;
+              const moreCandles = normalizeCandles(historicalResponse?.candles);
 
               if (moreCandles && moreCandles.length > 0) {
                 const newCandles = [...moreCandles, ...currentCandles];
                 candlestickSeries.setData(newCandles);
+                setHasData(true);
               }
               isFetchingRef.current = false;
             }
@@ -100,9 +128,10 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
 
         const handleResize = () => {
           if (!chartElementRef.current || !chartRef.current) return;
+          const { width, height } = getChartSize();
           chartRef.current.applyOptions({
-            width: chartElementRef.current.clientWidth,
-            height: chartElementRef.current.clientHeight,
+            width,
+            height,
           });
         };
 
@@ -125,11 +154,23 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
     if (!tick || !candlestickSeriesRef.current || !tick.price || !tick.time) return;
 
     try {
+      setLastTickAt(Date.now());
       const price = tick.price;
       const time = Math.floor(tick.time / 1000);
       const lastCandle = lastCandleRef.current;
 
       if (!lastCandle) {
+        // Seed the chart from the first live tick when historical fetch is empty.
+        const firstCandle: CandlestickData<Time> = {
+          time: time as Time,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+        };
+        candlestickSeriesRef.current.update(firstCandle);
+        lastCandleRef.current = firstCandle;
+        setHasData(true);
         return;
       }
 
@@ -159,6 +200,7 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
         };
         candlestickSeriesRef.current.update(newCandle);
         lastCandleRef.current = newCandle;
+        setHasData(true);
       } else if (time >= lastCandle.time) {
         const updatedCandle = {
           ...lastCandle,
@@ -168,6 +210,7 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
         };
         candlestickSeriesRef.current.update(updatedCandle);
         lastCandleRef.current = updatedCandle;
+        setHasData(true);
       }
     } catch (error) {
       console.error('error in tick processing: ', error);
@@ -177,6 +220,11 @@ const Chart = ({ chartRef, window = '1m', tick, selectedSymbol, chartElementRef 
   return (
     <div className="flex-1 relative">
       <div ref={chartElementRef} className="w-full h-full bg-gray-900 flex items-center justify-center" />
+      {!hasData && (
+        <div className="absolute left-3 top-3 rounded bg-black/45 px-2 py-1 text-[11px] text-gray-300">
+          {lastTickAt ? 'Waiting for chart update...' : 'Waiting for candles/ticks...'}
+        </div>
+      )}
     </div>
   );
 };
